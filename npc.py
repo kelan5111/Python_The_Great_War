@@ -32,7 +32,6 @@ class NPC:
             path = waypoint_graph.build_path([], waypoint_id, self._curr_waypoint, None)
 
         if path is not None:
-            path.reverse()
             self._path = path
             self._target_waypoint = None
 
@@ -99,13 +98,13 @@ class Soldier(NPC, ABC):
         self._curr_waypoint = waypoint
         self._country = country
 
-        self.__selected = False
+        self._selected = False
 
     def __str__(self):
         return f"Soldier: {self._ID}, Country: {self._country}, Waypoint: {self._curr_waypoint}, target: {self._path}"
 
-    def attack(self, enemy_list):
-        enemy = self._is_enemy_near(enemy_list)
+    def detect_enemy(self, soldier_list):
+        enemy = self._is_enemy_near(soldier_list)
 
         if enemy is not None:
             self.__execute_attack(enemy)
@@ -114,7 +113,7 @@ class Soldier(NPC, ABC):
         pygame.draw.rect(screen, self._colour, self._shape)
         self.update()
 
-        if self.__selected:
+        if self._selected:
             border_thickness = 5
             border_color = (255, 255, 255)
             pygame.draw.rect(screen, border_color, self._shape, border_thickness)
@@ -123,14 +122,14 @@ class Soldier(NPC, ABC):
         pass
 
     def has_selected(self):
-        return self.__selected
+        return self._selected
 
     def select(self, mouse_pos):
         if self._shape.collidepoint(mouse_pos):
-            self.__selected = True
+            self._selected = True
 
     def unselect(self):
-        self.__selected = False
+        self._selected = False
 
 
 class Country(Enum):

@@ -21,7 +21,7 @@ class Node:
         Node.next_id += 1
 
     def __repr__(self):
-        return f'Node ID: {self.__ID}: {self.__coord}'
+        return f'Node ID: {self.__ID}'
 
     def draw(self, screen):
         DIAMETER = Node.RADIUS * 2
