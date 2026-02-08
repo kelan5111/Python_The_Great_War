@@ -2,7 +2,7 @@ import math
 
 
 class Coordinate:
-    RADIUS = 5
+    RADIUS = 150
 
     def __init__(self, x, y):
         self.__x = x
@@ -16,10 +16,9 @@ class Coordinate:
         other_x = other.get_x()
         other_y = other.get_y()
 
-        if ((self.__x - other_x) ** 2 + (self.__y - other_y) ** 2) < Coordinate.RADIUS ** 2:
-            return True
+        distance_squared = (self.__x - other_x) ** 2 + (self.__y - other_y) ** 2
 
-        return False
+        return math.sqrt(distance_squared) < Coordinate.RADIUS
 
     def calculate_distance(self, other):
         if type(other) != Coordinate:

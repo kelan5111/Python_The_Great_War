@@ -3,13 +3,14 @@ from pygame import key
 
 from waypoint import Graph, Node
 from coordinate import Coordinate
-from npc import Soldier, Country
+from npc import Soldier, Country, Weapon
 
 WIDTH = 1280
 HEIGHT = 720
 waypoints = []
 
 soldiers = []
+others = []
 
 
 def draw(screen, waypoint_graph):
@@ -32,10 +33,22 @@ def build_waypoints(waypoint_graph):
     waypoint_graph.build_graph(temp)
 
 
+def manage_death(soldier):
+    return not soldier.is_alive()
+
+
 def draw_NPCs(screen):
     # Draw soldiers
     for soldier in soldiers:
         soldier.draw(screen)
+        soldier.update(soldiers)
+
+        if not soldier.is_alive():
+            soldiers.remove(soldier)
+
+    for other in others:
+        other.draw(screen)
+        other.update()
 
 
 def main():
@@ -51,9 +64,17 @@ def main():
 
     # Starting pos for npc
     british_start_pos = waypoint_graph.breadth_first_search(None, 1)
-    germany_start_pos = waypoint_graph.breadth_first_search(None, 500)
+    germany_start_pos = waypoint_graph.breadth_first_search(None, 25)
     british_soldier = Soldier(british_start_pos, Country.BRITAIN)
     german_soldier = Soldier(germany_start_pos, Country.GERMANY)
+
+    b_weapon = Weapon("none", british_soldier)
+    g_weapon = Weapon("none", german_soldier)
+    others.append(b_weapon)
+    others.append(g_weapon)
+
+    british_soldier.arm_with_weapon(b_weapon)
+    german_soldier.arm_with_weapon(g_weapon)
     soldiers.append(british_soldier)
     soldiers.append(german_soldier)
 
@@ -68,13 +89,15 @@ def main():
                 if pygame.mouse.get_pressed() and event.button == 1:
                     for soldier in soldiers:
                         # Selecting a soldier
-                        soldier.select(mouse_pos)
+                        if soldier.is_selected(mouse_pos):
+                            soldier.select()
+                        else:
+                            soldier.unselect()
 
                 if pygame.mouse.get_pressed() and event.button == 3:
                     for soldier in soldiers:
                         if soldier.has_selected():
                             soldier.set_path(waypoint_graph, mouse_pos)
-                            print(soldier)
                             soldier.unselect()
 
         screen.fill((48, 35, 9))
