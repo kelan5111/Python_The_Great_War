@@ -137,6 +137,7 @@ class Soldier(NPC, ABC):
             if enemy is not None:  # Enemy is near, stop moving and engage
                 self._engaged = True
                 self._enemy_lock = enemy
+                print(self._enemy_lock)
                 self._execute_attack()
             else:  # No enemy is in sight act normal
                 self._engaged = False
@@ -174,21 +175,19 @@ class Soldier(NPC, ABC):
 
     def kill(self):
         self._alive = False
-        # Manage weapon
-        self._weapon.remove_owner()
-        self._weapon = None
 
     def _calc_shot_chance(self):
-        random_chance = random.randint(0, 100)
-        moving = 30
+        if self.has_weapon():
+            random_chance = random.randint(0, 100)
+            moving = 30
 
-        # Negative factors contributing to the shot chance
-        if self._moving:
-            self._shot_chance -= moving
+            # Negative factors contributing to the shot chance
+            if self._moving:
+                self._shot_chance -= moving
 
-        # Measuring the chances against random num
-        if random_chance <= self._shot_chance:
-            return True
+            # Measuring the chances against random num
+            if random_chance <= self._shot_chance:
+                return True
 
         return False
 
@@ -207,9 +206,11 @@ class Soldier(NPC, ABC):
     def has_weapon(self):
         return self._weapon is not None
 
+    def get_weapon(self):
+        return self._weapon
+
     def get_shot_chance(self):
         return self._shot_chance
-
 
 
 class Weapon:
@@ -244,7 +245,6 @@ class Weapon:
 
     def shoot(self, target):
         target.kill()
-        target.disarm()
         # need a weapon chance of killing
 
     def set_owner(self, owner):

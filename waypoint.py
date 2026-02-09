@@ -1,6 +1,8 @@
 import pygame
 from queue import Queue
 
+from coordinate import Coordinate
+
 
 class Node:
     RADIUS = 5
@@ -88,7 +90,21 @@ class Graph:
     def __str__(self):
         print(self.__nodes)
 
-    def build_graph(self, temp):
+    def build_waypoints(self):
+        gap = 40
+
+        temp = []
+
+        for x in range(0, self.__width, gap):
+            column = []  # Create a new empty column for every X
+            for y in range(0, self.__height, gap):
+                column.append(Node(Coordinate(x + gap, y + gap)))  # Add nodes to the column
+            temp.append(column)
+
+        # Building the graph
+        self.__build_graph(temp)
+
+    def __build_graph(self, temp):
         for y in range(len(temp) - 1):
             for x in range(len(temp[y]) - 1):
                 current_node = temp[y][x]
@@ -108,7 +124,7 @@ class Graph:
         for node in self.__nodes:
             node.draw(screen)
 
-    def breadth_first_search(self, start, waypoint_id):
+    def __breadth_first_search(self, start, waypoint_id):
         if start is None:  # If there isn't a start pos (start of game)
             source_node = self.__nodes[0]
         else:  # There is a start pos
@@ -148,11 +164,10 @@ class Graph:
     def build_path(self, path, waypoint_id, start, target_waypoint=None):
         if target_waypoint is None:
             # BFS search for path without a target
-            target_waypoint = self.breadth_first_search(start, waypoint_id)
+            target_waypoint = self.__breadth_first_search(start, waypoint_id)
         else:
             # BFS search for path with a target
-            target_waypoint = self.breadth_first_search(start, target_waypoint.get_ID())
-
+            target_waypoint = self.__breadth_first_search(start, target_waypoint.get_ID())
 
         # Base case: until we reach the start node
         parent = target_waypoint.get_parent()
@@ -185,10 +200,6 @@ class Graph:
                 closest_distance = distance
 
         return closest_waypoint
-
-    def __insert_edge(self, source, target):
-        source.add_neighbour(target)
-        target.insert_neighbour(target)
 
     def get_nodes(self):
         return self.__nodes
