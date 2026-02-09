@@ -2,6 +2,7 @@ import pygame
 from enum import Enum
 from coordinate import Coordinate
 from abc import ABC, abstractmethod
+import random
 
 
 class NPC:
@@ -20,6 +21,9 @@ class NPC:
 
         self._alive = True
         self._engaged = False
+        # Stats that affect the NPC chance of surviving/winning an attack
+        self._moving = False
+        self._speed = NPC.SPEED
 
         self._path = []
         self._target_waypoint = None
@@ -35,8 +39,11 @@ class NPC:
             path = waypoint_graph.build_path([], waypoint_id, self._curr_waypoint, None)
 
         if path is not None:
+            self._moving = True
             self._path = path
             self._target_waypoint = None
+        else:
+            self._moving = False
 
     def update(self, soldier_list=None):
         if not self._engaged:
@@ -118,6 +125,7 @@ class Soldier(NPC, ABC):
 
         self._selected = False
         self._enemy_lock = None
+        self._shot_chance = 100
 
     def __str__(self):
         return f"Soldier: {self._ID}, Country: {self._country}, Waypoint: {self._curr_waypoint}"
@@ -126,11 +134,11 @@ class Soldier(NPC, ABC):
         if soldier_list is not None:
             enemy = self._is_enemy_near(soldier_list)
 
-            if enemy is not None:   # Enemy is near, stop moving and engage
+            if enemy is not None:  # Enemy is near, stop moving and engage
                 self._engaged = True
                 self._enemy_lock = enemy
                 self._execute_attack()
-            else:   # No enemy is in sight act normal
+            else:  # No enemy is in sight act normal
                 self._engaged = False
                 self._enemy_lock = None
 
@@ -148,8 +156,9 @@ class Soldier(NPC, ABC):
 
     def _execute_attack(self):
         if self.has_weapon():
-            print("Attacking")
-            self._weapon.shoot(self._enemy_lock)
+            shot_success = self._calc_shot_chance()
+            if shot_success:
+                self._weapon.shoot(self._enemy_lock)
 
     def update(self, soldier_list=None):
         super().update()
@@ -165,7 +174,23 @@ class Soldier(NPC, ABC):
 
     def kill(self):
         self._alive = False
+        # Manage weapon
+        self._weapon.remove_owner()
         self._weapon = None
+
+    def _calc_shot_chance(self):
+        random_chance = random.randint(0, 100)
+        moving = 30
+
+        # Negative factors contributing to the shot chance
+        if self._moving:
+            self._shot_chance -= moving
+
+        # Measuring the chances against random num
+        if random_chance <= self._shot_chance:
+            return True
+
+        return False
 
     def has_selected(self):
         return self._selected
@@ -181,6 +206,10 @@ class Soldier(NPC, ABC):
 
     def has_weapon(self):
         return self._weapon is not None
+
+    def get_shot_chance(self):
+        return self._shot_chance
+
 
 
 class Weapon:
@@ -218,11 +247,11 @@ class Weapon:
         target.disarm()
         # need a weapon chance of killing
 
-    def calc_shot_chance(self):
-        pass
-
     def set_owner(self, owner):
         self._owner = owner
+
+    def remove_owner(self):
+        self._owner = None
 
 
 class Country(Enum):
