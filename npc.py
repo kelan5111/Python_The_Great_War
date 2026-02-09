@@ -8,6 +8,7 @@ class NPC:
     ID = 0
     WIDTH = 20
     HEIGHT = 20
+    SPEED = 0.5
 
     def __init__(self, waypoint, country):
         self._curr_waypoint = waypoint
@@ -18,6 +19,7 @@ class NPC:
         self._ID = NPC.ID + 1
 
         self._alive = True
+        self._engaged = False
 
         self._path = []
         self._target_waypoint = None
@@ -37,21 +39,22 @@ class NPC:
             self._target_waypoint = None
 
     def update(self, soldier_list=None):
-        if self._target_waypoint is None:
-            if self._path:
-                self._target_waypoint = self._path.pop()
-            else:
+        if not self._engaged:
+            if self._target_waypoint is None:
+                if self._path:
+                    self._target_waypoint = self._path.pop()
+                else:
+                    return
+
+            target_coord = self._target_waypoint.get_coord()
+
+            if self._coord.get_coord() == target_coord.get_coord():
+                self._curr_waypoint = self._target_waypoint
+                self._target_waypoint = None
                 return
 
-        target_coord = self._target_waypoint.get_coord()
-
-        if self._coord.get_coord() == target_coord.get_coord():
-            self._curr_waypoint = self._target_waypoint
-            self._target_waypoint = None
-            return
-
-        next_coord = self._calc_next_coord(target_coord)
-        self._update(next_coord)
+            next_coord = self._calc_next_coord(target_coord)
+            self._update(next_coord)
 
     def _calc_next_coord(self, target_coord):
         step = 1
@@ -61,14 +64,14 @@ class NPC:
         target_y = target_coord.get_y()
 
         if new_x < target_x:
-            new_x += step
+            new_x += (step * NPC.SPEED)
         elif new_x > target_x:
-            new_x -= step
+            new_x -= (step * NPC.SPEED)
 
         if new_y < target_y:
-            new_y += step
+            new_y += (step * NPC.SPEED)
         elif new_y > target_y:
-            new_y -= step
+            new_y -= (step * NPC.SPEED)
 
         return Coordinate(new_x, new_y)
 
@@ -123,10 +126,13 @@ class Soldier(NPC, ABC):
         if soldier_list is not None:
             enemy = self._is_enemy_near(soldier_list)
 
-            if enemy is not None:
-                print("Enemy near")
+            if enemy is not None:   # Enemy is near, stop moving and engage
+                self._engaged = True
                 self._enemy_lock = enemy
                 self._execute_attack()
+            else:   # No enemy is in sight act normal
+                self._engaged = False
+                self._enemy_lock = None
 
     def draw(self, screen):
         pygame.draw.rect(screen, self._colour, self._shape)
@@ -211,6 +217,9 @@ class Weapon:
         target.kill()
         target.disarm()
         # need a weapon chance of killing
+
+    def calc_shot_chance(self):
+        pass
 
     def set_owner(self, owner):
         self._owner = owner
