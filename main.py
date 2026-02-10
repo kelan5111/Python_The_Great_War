@@ -1,8 +1,9 @@
 from game import Game
+from npc import Country
 
 
 def main():
-    game = Game()
+    game = Game(Country.BRITAIN)
 
     # Running game
     game.run()

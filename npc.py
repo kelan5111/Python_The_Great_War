@@ -18,18 +18,23 @@ class NPC:
         self._colour = country.value
         self._shape = pygame.Rect(self._coord.get_coord(), (NPC.WIDTH, NPC.HEIGHT))
         self._ID = NPC.ID + 1
+        self._speed = NPC.SPEED
 
         self._alive = True
         self._engaged = False
-        # Stats that affect the NPC chance of surviving/winning an attack
+        self._selected = False
         self._moving = False
-        self._speed = NPC.SPEED
 
         self._path = []
         self._target_waypoint = None
 
     def draw(self, screen):
         pygame.draw.rect(screen, self._colour, self._shape)
+
+        if self._selected:
+            border_thickness = 2
+            border_color = (255, 255, 255)
+            pygame.draw.rect(screen, border_color, self._shape, border_thickness)
 
     def set_path(self, waypoint_graph, target_coord=None, waypoint_id=None):
         if target_coord is not None:  # If we want to move to a certain coord (find the closest waypoint)
@@ -122,8 +127,6 @@ class Soldier(NPC, ABC):
         self._curr_waypoint = waypoint
         self._country = country
         self._weapon = weapon
-
-        self._selected = False
         self._enemy_lock = None
         self._shot_chance = 100
 
@@ -137,19 +140,10 @@ class Soldier(NPC, ABC):
             if enemy is not None:  # Enemy is near, stop moving and engage
                 self._engaged = True
                 self._enemy_lock = enemy
-                print(self._enemy_lock)
                 self._execute_attack()
             else:  # No enemy is in sight act normal
                 self._engaged = False
                 self._enemy_lock = None
-
-    def draw(self, screen):
-        pygame.draw.rect(screen, self._colour, self._shape)
-
-        if self._selected:
-            border_thickness = 2
-            border_color = (255, 255, 255)
-            pygame.draw.rect(screen, border_color, self._shape, border_thickness)
 
     def _draw_weapon(self):
         if self.has_weapon():
@@ -170,12 +164,6 @@ class Soldier(NPC, ABC):
         self._weapon = weapon
         self._weapon.set_owner(self)
 
-    def disarm(self):
-        self._weapon = None
-
-    def kill(self):
-        self._alive = False
-
     def _calc_shot_chance(self):
         if self.has_weapon():
             random_chance = random.randint(0, 100)
@@ -190,6 +178,12 @@ class Soldier(NPC, ABC):
                 return True
 
         return False
+
+    def disarm(self):
+        self._weapon = None
+
+    def kill(self):
+        self._alive = False
 
     def has_selected(self):
         return self._selected
@@ -208,6 +202,9 @@ class Soldier(NPC, ABC):
 
     def get_weapon(self):
         return self._weapon
+
+    def get_shape(self):
+        return self._shape
 
     def get_shot_chance(self):
         return self._shot_chance
