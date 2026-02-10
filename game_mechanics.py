@@ -37,6 +37,9 @@ class Actor(ABC):
     def is_alive(self):
         return self._alive
 
+    def get_coord(self):
+        return self._coord
+
 
 class Group:
     def __init__(self, screen):

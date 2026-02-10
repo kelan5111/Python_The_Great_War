@@ -60,13 +60,14 @@ class Game:
             rand_y = random.randint(0, self.__height)
             starting_waypoint = self.__waypoint_graph.find_nearest_waypoint(Coordinate(rand_x, rand_y))
 
-            soldier = Soldier(starting_waypoint, self.__countries[random.randint(0, 1)])
-            weapon = Weapon("none", soldier)
-            soldier.arm_with_weapon(weapon)
+            weapon = Weapon("none")
+            soldier = Soldier(starting_waypoint, self.__countries[random.randint(0, 1)],
+                              self.__group.get_actors(), weapon)
 
             self.__group.add(soldier)
             self.__group.add(weapon)
-            self.__group.add(self.__select_box)
+
+        self.__group.add(self.__select_box)
 
     def __draw_world(self):
         self.__screen.fill((48, 35, 9))
@@ -88,7 +89,6 @@ class Game:
                     if isinstance(actor, Soldier):
                         if (actor.get_country() == self.__player and
                                 actor.has_collided(mouse_pos)):
-                            print("selected")
                             actor.select()
 
             # Any soldier is selected they will move to mouse pos

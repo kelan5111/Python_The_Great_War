@@ -12,7 +12,7 @@ class NPC(Actor):
     HEIGHT = 20
     SPEED = 0.5
 
-    def __init__(self, waypoint, country, coord, width, height):
+    def __init__(self, waypoint, country, actors, coord, width, height):
         super().__init__(coord, width, height)
         self._curr_waypoint = waypoint
         self._coord = waypoint.get_coord()
@@ -20,7 +20,9 @@ class NPC(Actor):
         self._colour = country.value
         self._shape = pygame.Rect(self._coord.get_coord(), (NPC.WIDTH, NPC.HEIGHT))
         self._ID = NPC.ID + 1
+
         self._speed = NPC.SPEED
+        self._actors = actors
 
         self._engaged = False
         self._moving = False
@@ -55,18 +57,19 @@ class NPC(Actor):
             self._update(next_coord)
 
     def set_path(self, waypoint_graph, target_coord=None, waypoint_id=None):
-        if target_coord is not None:  # If we want to move to a certain coord (find the closest waypoint)
-            self._target_waypoint = waypoint_graph.find_nearest_waypoint(target_coord)
-            path = waypoint_graph.build_path([], waypoint_id, self._curr_waypoint, self._target_waypoint)
-        else:
-            path = waypoint_graph.build_path([], waypoint_id, self._curr_waypoint, None)
+        if self.has_selected():
+            if target_coord is not None:  # If we want to move to a certain coord (find the closest waypoint)
+                self._target_waypoint = waypoint_graph.find_nearest_waypoint(target_coord)
+                path = waypoint_graph.build_path([], waypoint_id, self._curr_waypoint, self._target_waypoint)
+            else:
+                path = waypoint_graph.build_path([], waypoint_id, self._curr_waypoint, None)
 
-        if path is not None:
-            self._moving = True
-            self._path = path
-            self._target_waypoint = None
-        else:
-            self._moving = False
+            if path is not None:
+                self._moving = True
+                self._path = path
+                self._target_waypoint = None
+            else:
+                self._moving = False
 
     def _calc_next_coord(self, target_coord):
         step = 1
@@ -87,13 +90,12 @@ class NPC(Actor):
 
         return Coordinate(new_x, new_y)
 
-    def _is_enemy_near(self, enemy_list):
-        for enemy in enemy_list:
-            if enemy.get_country() != self._country:
-                enemy_coord = enemy.get_coord()
-                danger = self._coord.execute_radius_check(enemy_coord)
-                if danger:
-                    return enemy
+    def _is_enemy_near(self, enemy):
+        if enemy.get_country() != self._country:
+            enemy_coord = enemy.get_coord()
+            danger = self._coord.execute_radius_check(enemy_coord)
+            if danger:
+                return enemy
 
         return None
 
@@ -111,22 +113,13 @@ class NPC(Actor):
 
         return self._shape.colliderect(entity)
 
-    def is_alive(self):
-        return self._alive
-
-    def kill(self):
-        self._alive = False
-
-    def get_coord(self):
-        return self._coord
-
     def get_country(self):
         return self._country
 
 
 class Soldier(NPC, ABC):
-    def __init__(self, waypoint, country, coord=None, width=None, height=None, weapon=None):
-        super().__init__(waypoint, country, coord, width, height)
+    def __init__(self, waypoint, country, actors, weapon=None, coord=None, width=None, height=None):
+        super().__init__(waypoint, country, actors, coord, width, height)
 
         self._curr_waypoint = waypoint
         self._country = country
@@ -137,22 +130,24 @@ class Soldier(NPC, ABC):
     def __str__(self):
         return f"Soldier: {self._ID}, Country: {self._country}, Waypoint: {self._curr_waypoint}"
 
-    def act(self, soldier_list=None):
+    def act(self):
         super().act()
 
-        self._detect_enemy(soldier_list)
+        self._detect_enemies()
+        self._weapon.lock_to_owner(self._coord)
 
-    def _detect_enemy(self, soldier_list):
-        if soldier_list is not None:
-            enemy = self._is_enemy_near(soldier_list)
+    def _detect_enemies(self):
+        for actor in self._actors:
+            if isinstance(actor, Soldier):
+                enemy = self._is_enemy_near(actor)
 
-            if enemy is not None:  # Enemy is near, stop moving and engage
-                self._engaged = True
-                self._enemy_lock = enemy
-                self._attack()
-            else:  # No enemy is in sight act normal
-                self._engaged = False
-                self._enemy_lock = None
+                if enemy is not None:  # Enemy is near, stop moving and engage
+                    self._engaged = True
+                    self._enemy_lock = enemy
+                    self._attack()
+                else:  # No enemy is in sight act normal
+                    self._engaged = False
+                    self._enemy_lock = None
 
     def _draw_weapon(self):
         if self.has_weapon():
@@ -163,10 +158,6 @@ class Soldier(NPC, ABC):
             shot_success = self._calc_shot_chance()
             if shot_success:
                 self._weapon.shoot(self._enemy_lock)
-
-    def arm_with_weapon(self, weapon):
-        self._weapon = weapon
-        self._weapon.set_owner(self)
 
     def _calc_shot_chance(self):
         if self.has_weapon():
@@ -183,8 +174,11 @@ class Soldier(NPC, ABC):
 
         return False
 
-    def disarm(self):
-        self._weapon = None
+    def set_weapon(self, weapon):
+        self._weapon = weapon
+
+    def remove_weapon(self):
+        self._weapon.kill()
 
     def has_weapon(self):
         return self._weapon is not None
@@ -204,44 +198,31 @@ class Weapon(Actor, ABC):
     WIDTH = 10
     HEIGHT = 20
 
-    def __init__(self, gun_type, coord=None, width=None, height=None, owner=None):
+    def __init__(self, gun_type, coord=None, width=None, height=None):
         super().__init__(coord, width, height)
         self._shape = pygame.Rect((0, 0), (10, 10))
         self._colour = pygame.Color(0, 0, 0)
 
         self._gun_type = gun_type
         self._ammo = Weapon.AMMO_CAPACITY
-        self._owner = owner
         self._coord = Coordinate(-100, -100)
 
     def __str__(self):
-        return f"Gun{self._gun_type}: {self._owner}, capacity: {self._ammo}"
+        return f"Gun{self._gun_type}: capacity: {self._ammo}"
 
     def draw(self, screen):
-        if self._owner is not None:
-            pygame.draw.rect(screen, self._colour, self._shape)
+        pygame.draw.rect(screen, self._colour, self._shape)
 
     def act(self):
-        pass
-
-    def _lock_to_owner(self):
-        if self._owner is not None:
-            owner_coord = self._owner.get_coord()
-            self._coord = owner_coord
-
-    def update(self):
         self._shape = pygame.Rect(self._coord.get_coord(), (Weapon.WIDTH, Weapon.HEIGHT))
-        self._lock_to_owner()
+
+    def lock_to_owner(self, coord):
+        self._coord = coord
 
     def shoot(self, target):
+        target.remove_weapon()
         target.kill()
         # need a weapon chance of killing
-
-    def set_owner(self, owner):
-        self._owner = owner
-
-    def remove_owner(self):
-        self._owner = None
 
 
 class Country(Enum):
