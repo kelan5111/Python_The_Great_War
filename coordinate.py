@@ -38,6 +38,9 @@ class Coordinate:
     def get_y(self):
         return self.__y
 
+    def calc_center(self, width, height):
+        return self.__x + width / 2, self.__y + height / 2
+
     def get_coord(self):
         return self.__coord
 

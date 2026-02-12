@@ -14,26 +14,48 @@ class Actor(ABC):
 
         self._alive = True
         self._select = False
+        self._hover = False
 
     @abstractmethod
     def draw(self, screen):
         pass
 
     @abstractmethod
-    def act(self):
+    def act(self, mouse_pos):
         pass
+
+    def get_coord(self):
+        return self._coord
+
+    def get_width(self):
+        return self._width
+
+    def get_height(self):
+        return self._height
+
+    def get_x(self):
+        return self._coord.get_x()
+
+    def get_y(self):
+        return self._coord.get_y()
+
+    def get_centre(self):
+        return self._coord.calc_center(self._width, self._height)
 
     def kill(self):
         self._alive = False
 
-    def select(self):
-        self._select = True
-
-    def deselect(self):
-        self._select = False
+    def set_select(self, select):
+        self._select = select
 
     def has_selected(self):
         return self._select
+
+    def has_hover(self):
+        return self._hover
+
+    def set_hover(self, hover):
+        self._hover = hover
 
     def is_alive(self):
         return self._alive
@@ -51,9 +73,9 @@ class Group:
         for actor in self.__actors:
             actor.draw(self.__screen)
 
-    def act(self):
+    def act(self, mouse_pos):
         for actor in self.__actors:
-            actor.act()
+            actor.act(mouse_pos)
 
         # Remove any actors who are not alive
         self.__remove()
@@ -84,8 +106,8 @@ class SelectBox(Actor, ABC):
         if self.__pressed:
             pygame.draw.rect(screen, self.OUTLINE_COLOUR, self.__rect, 3)
 
-    def act(self):
-        pass
+    def act(self, mouse_pos):
+        self.execute(mouse_pos)
 
     def execute(self, mouse_pos):
         if not self.__pressed:
@@ -117,11 +139,18 @@ class SelectBox(Actor, ABC):
     def __select(self, actors):
         for actor in actors:
             if isinstance(actor, npc.Soldier):
-                if (actor.has_collided(self.__rect) and
+                if (self.has_collided(actor) and
                         actor.get_country() == self.__country):
-                    actor.select()
+                    actor.set_select(True)
                 else:
-                    actor.deselect()
+                    actor.set_select(False)
+
+    def has_collided(self, other):
+        if isinstance(other, tuple):
+            return self.__rect.collidepoint(other)
+        elif isinstance(other, npc.Soldier):
+            soldier_rect = other.get_rect()
+            return self.__rect.colliderect(soldier_rect)
 
     def pressed(self, mouse_pos):
         self.__pressed = True

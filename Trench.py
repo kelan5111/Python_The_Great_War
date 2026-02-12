@@ -20,11 +20,11 @@ class Trench(Actor, ABC):
 
         self._trench_waypoints = Graph(self._width, height, 20)
         self._build_waypoints()
-        self._trench_waypoints.debug_game()
 
         self._total_capacity = total_capacity
         self._country = country
         self._curr_soldiers = []
+
         self._actors = actors
 
     def draw(self, screen):
@@ -36,8 +36,17 @@ class Trench(Actor, ABC):
 
         self._trench_waypoints.draw(screen)
 
-    def act(self):
+    def act(self, mouse_pos):
         self._update_curr_soldiers()
+        self._update_rect()
+
+        self._hover = self._rect.collidepoint(mouse_pos)
+
+        self._check_hover()
+
+    def _update_rect(self):
+        self._rect = pygame.Rect(self._coord.get_coord(), (self._width, self._height))
+        self._boarder_rect = pygame.Rect(self._coord.get_coord(), (self._width, self._height))
 
     def _build_waypoints(self):
         coord_width = self._rect.topleft[0], self._rect.topright[0]
@@ -47,15 +56,26 @@ class Trench(Actor, ABC):
 
     def _update_curr_soldiers(self):
         for actor in self._actors:
-            if isinstance(actor, Soldier):
-                if self._rect.colliderect(actor.get_rect()):
-                    self._curr_soldiers.append(actor)
+            if self.has_collided(actor):
+                self._curr_soldiers.append(actor)
 
-    def get_width(self):
-        return self._width
+    def has_collided(self, other):
+        if isinstance(other, tuple):
+            return self._rect.collidepoint(other)
+        elif isinstance(other, Soldier):
+            soldier_rect = other.get_rect()
+            return self._rect.colliderect(soldier_rect)
 
-    def get_height(self):
-        return self._height
+    def _check_hover(self):
+        if self._select:
+            self._outline_colour = (255, 0, 0)
+        elif self._hover:
+            self._outline_colour = (255, 255, 255)
+        else:
+            self._outline_colour = (207, 185, 151)
+
+    def get_country(self):
+        return self._country
 
 
 class FrontLineTrench(Trench, ABC):

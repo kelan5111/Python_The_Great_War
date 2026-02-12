@@ -5,7 +5,7 @@ from waypoint import Graph
 from coordinate import Coordinate
 from npc import Soldier, Country, Weapon
 from game_mechanics import SelectBox, Group, JSONLoader
-from trench import FrontLineTrench, SupportTrench
+from trench import FrontLineTrench, SupportTrench, Trench
 
 
 class Game:
@@ -28,7 +28,7 @@ class Game:
         clock = pygame.time.Clock()
 
         self.__initialize()
-        #self.__world_waypoints.debug_game()
+        # self.__world_waypoints.debug_game()
 
         while self.__running:
             mouse_pos = pygame.mouse.get_pos()
@@ -42,10 +42,9 @@ class Game:
             self.__draw_world()
 
             self.__group.draw()
-            self.__group.act()
+            self.__group.act(mouse_pos)
 
             self.__field_waypoints.draw(self.__screen)
-            self.__select_box.execute(mouse_pos)
 
             pygame.display.flip()
             clock.tick(60)
@@ -55,13 +54,17 @@ class Game:
     def __initialize(self):
         actors = self.__group.get_actors()
 
-        front_line_one = FrontLineTrench(50, self.__height, 10, Coordinate(150, 0), self.__player, self.__ground_colour, actors)
-        support_line_one = SupportTrench(50, self.__height, 50, Coordinate(50, 0), self.__player, self.__ground_colour, actors)
-        front_line_two = FrontLineTrench(50, self.__height, 10, Coordinate(self.__width - 200, 0), Country.GERMANY, self.__ground_colour, actors)
-        support_line_two = SupportTrench(50, self.__height, 50, Coordinate(self.__width - 100, 0), Country.GERMANY, self.__ground_colour, actors)
+        front_line_one = FrontLineTrench(50, self.__height, 10, Coordinate(150, 0), self.__player, self.__ground_colour,
+                                         actors)
+        support_line_one = SupportTrench(50, self.__height, 50, Coordinate(50, 0), self.__player, self.__ground_colour,
+                                         actors)
+        front_line_two = FrontLineTrench(50, self.__height, 10, Coordinate(self.__width - 200, 0), Country.GERMANY,
+                                         self.__ground_colour, actors)
+        support_line_two = SupportTrench(50, self.__height, 50, Coordinate(self.__width - 100, 0), Country.GERMANY,
+                                         self.__ground_colour, actors)
 
         self.__field_waypoints.build()
-        #self.__field_waypoints.debug_game()
+        # self.__field_waypoints.debug_game()
 
         self.__group.add(front_line_one)
         self.__group.add(support_line_one)
@@ -90,26 +93,37 @@ class Game:
 
         if event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1:
-
                 # If we are dragging a select box
                 if self.__select_box.is_pressed():
                     self.__select_box.end_drag(self.__group.get_actors())
-
-                # If we are selecting a soldier manually on screen
+                # If we are selecting a type from collision_options manually on screen
                 for actor in self.__group.get_actors():
                     if isinstance(actor, Soldier):
                         if (actor.get_country() == self.__player and
                                 actor.has_collided(mouse_pos)):
-                            actor.select()
+                            actor.set_select(True)
 
             # Any soldier is selected they will move to mouse pos
             if event.button == 3:
                 for actor in self.__group.get_actors():
                     if isinstance(actor, Soldier):
                         actor.set_path(self.__field_waypoints, mouse_pos)
-                        actor.deselect()
+                        actor.set_select(False)
+
+                    # Unselect Trench once selected
+                    elif isinstance(actor, Trench):
+                        if actor.has_hover():
+                            actor.set_select(False)
 
         if event.type == pygame.MOUSEBUTTONDOWN:
             # If we click and hold then select box
             if event.button == 1:
                 self.__select_box.pressed(mouse_pos)
+
+            # Select Trench
+            if event.button == 3:
+                for actor in self.__group.get_actors():
+                    if isinstance(actor, Trench) and actor.get_country() == self.__player:
+                        if actor.has_hover():
+                            actor.set_select(True)
+

@@ -214,13 +214,8 @@ class Graph:
 
         return closest_waypoint
 
-    def set_param(self, width, height, spaced):
-        self.__width = width
-        self.__height = height
-        self.__spaced = spaced
+    def debug(self):
+        self.__debug = True
 
     def get_nodes(self):
         return self.__nodes
-
-    def debug_game(self):
-        self.__debug = True

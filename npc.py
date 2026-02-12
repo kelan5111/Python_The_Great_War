@@ -38,7 +38,7 @@ class NPC(Actor):
             border_color = (255, 255, 255)
             pygame.draw.rect(screen, border_color, self._rect, border_thickness)
 
-    def act(self):
+    def act(self, mouse_pos):
         if not self._engaged:
             if self._target_waypoint is None:
                 if self._path:
@@ -107,11 +107,12 @@ class NPC(Actor):
         self._coord = coord
         self._rect = pygame.Rect(self._coord.get_coord(), (NPC.WIDTH, NPC.HEIGHT))
 
-    def has_collided(self, entity):
-        if isinstance(entity, tuple):
-            return self._rect.collidepoint(entity)
-
-        return self._rect.colliderect(entity)
+    def has_collided(self, other):
+        if isinstance(other, tuple):
+            return self._rect.collidepoint(other)
+        elif isinstance(other, Soldier):
+            soldier_rect = other.get_rect()
+            return self._rect.colliderect(soldier_rect)
 
     def get_country(self):
         return self._country
@@ -130,8 +131,8 @@ class Soldier(NPC, ABC):
     def __str__(self):
         return f"Soldier: {self._ID}, Country: {self._country}, Waypoint: {self._curr_waypoint}"
 
-    def act(self):
-        super().act()
+    def act(self, mouse_pos):
+        super().act(mouse_pos)
 
         self._detect_enemies()
         self._weapon.lock_to_owner(self._coord)
@@ -213,7 +214,7 @@ class Weapon(Actor, ABC):
     def draw(self, screen):
         pygame.draw.rect(screen, self._colour, self._rect)
 
-    def act(self):
+    def act(self, mouse_pos):
         self._rect = pygame.Rect(self._coord.get_coord(), (Weapon.WIDTH, Weapon.HEIGHT))
 
     def lock_to_owner(self, coord):
