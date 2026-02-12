@@ -1,4 +1,5 @@
 import pygame
+import json
 from abc import ABC, abstractmethod
 
 import npc
@@ -74,14 +75,14 @@ class SelectBox(Actor, ABC):
 
     def __init__(self, country, coord=None, width=None, height=None):
         super().__init__(coord, width, height)
-        self.__shape = pygame.Rect(0, 0, 0, 0)
+        self.__rect = pygame.Rect(0, 0, 0, 0)
         self.__country = country
         self.__start_pos = None
         self.__pressed = False
 
     def draw(self, screen):
         if self.__pressed:
-            pygame.draw.rect(screen, self.OUTLINE_COLOUR, self.__shape, 3)
+            pygame.draw.rect(screen, self.OUTLINE_COLOUR, self.__rect, 3)
 
     def act(self):
         pass
@@ -102,7 +103,7 @@ class SelectBox(Actor, ABC):
         rect_w = abs(start_x - current_x)
         rect_h = abs(start_y - current_y)
 
-        self.__shape = pygame.Rect(rect_x, rect_y, rect_w, rect_h)
+        self.__rect = pygame.Rect(rect_x, rect_y, rect_w, rect_h)
 
     def end_drag(self, actors):
         if not self.__pressed:
@@ -111,12 +112,12 @@ class SelectBox(Actor, ABC):
         self.__pressed = False
         self.__select(actors)
 
-        self.__shape = pygame.Rect(0, 0, 0, 0)
+        self.__rect = pygame.Rect(0, 0, 0, 0)
 
     def __select(self, actors):
         for actor in actors:
             if isinstance(actor, npc.Soldier):
-                if (actor.has_collided(self.__shape) and
+                if (actor.has_collided(self.__rect) and
                         actor.get_country() == self.__country):
                     actor.select()
                 else:
@@ -128,3 +129,26 @@ class SelectBox(Actor, ABC):
 
     def is_pressed(self):
         return self.__pressed
+
+
+class JSONLoader:
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self.__data = self.__load_data()
+
+    def __load_data(self):
+        with open(self.file_path) as file:
+            return json.load(file)
+
+    def find(self, key_one, key_two):
+        if key_one not in self.__data:
+            return None
+
+        for item in self.__data[key_one]:  # list under trenchOne
+            if key_two in item:
+                return item[key_two][0]  # first frontLine object
+
+        return None
+
+    def __extract(self):
+        pass

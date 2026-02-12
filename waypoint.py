@@ -81,24 +81,33 @@ class Node:
 
 
 class Graph:
-    def __init__(self, width, height):
+    def __init__(self, width=None, height=None, spaced=None):
         self.__width = width
         self.__height = height
+        self.__spaced = spaced
+
+        self.__debug = False
 
         self.__nodes = []
 
     def __str__(self):
         print(self.__nodes)
 
-    def build_waypoints(self):
-        gap = 40
-
+    def build(self, width_coord=None, height_coord=None):
         temp = []
+        start_width_x = 0
+        start_height_x = 0
 
-        for x in range(0, self.__width, gap):
+        if width_coord is not None and height_coord is not None:
+            start_width_x = width_coord[0]
+            self.__width = width_coord[1]
+            start_height_x = height_coord[0]
+            self.__height = height_coord[1]
+
+        for x in range(start_width_x, self.__width, self.__spaced):
             column = []  # Create a new empty column for every X
-            for y in range(0, self.__height, gap):
-                column.append(Node(Coordinate(x + gap, y + gap)))  # Add nodes to the column
+            for y in range(start_height_x, self.__height, self.__spaced):
+                column.append(Node(Coordinate(x + self.__spaced, y + self.__spaced)))  # Add nodes to the column
             temp.append(column)
 
         # Building the graph
@@ -120,9 +129,13 @@ class Graph:
                     if 0 <= poss_x < self.__width and 0 <= poss_y < self.__height:
                         current_node.add_neighbour(temp[poss_y][poss_x])
 
+    def stitch_graph(self, ):
+        pass
+
     def draw(self, screen):
-        for node in self.__nodes:
-            node.draw(screen)
+        if self.__debug:
+            for node in self.__nodes:
+                node.draw(screen)
 
     def __breadth_first_search(self, start, waypoint_id):
         if start is None:  # If there isn't a start pos (start of game)
@@ -201,5 +214,13 @@ class Graph:
 
         return closest_waypoint
 
+    def set_param(self, width, height, spaced):
+        self.__width = width
+        self.__height = height
+        self.__spaced = spaced
+
     def get_nodes(self):
         return self.__nodes
+
+    def debug_game(self):
+        self.__debug = True

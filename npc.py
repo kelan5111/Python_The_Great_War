@@ -18,7 +18,7 @@ class NPC(Actor):
         self._coord = waypoint.get_coord()
         self._country = country
         self._colour = country.value
-        self._shape = pygame.Rect(self._coord.get_coord(), (NPC.WIDTH, NPC.HEIGHT))
+        self._rect = pygame.Rect(self._coord.get_coord(), (NPC.WIDTH, NPC.HEIGHT))
         self._ID = NPC.ID + 1
 
         self._speed = NPC.SPEED
@@ -31,12 +31,12 @@ class NPC(Actor):
         self._target_waypoint = None
 
     def draw(self, screen):
-        pygame.draw.rect(screen, self._colour, self._shape)
+        pygame.draw.rect(screen, self._colour, self._rect)
 
         if self._select:
             border_thickness = 2
             border_color = (255, 255, 255)
-            pygame.draw.rect(screen, border_color, self._shape, border_thickness)
+            pygame.draw.rect(screen, border_color, self._rect, border_thickness)
 
     def act(self):
         if not self._engaged:
@@ -56,13 +56,13 @@ class NPC(Actor):
             next_coord = self._calc_next_coord(target_coord)
             self._update(next_coord)
 
-    def set_path(self, waypoint_graph, target_coord=None, waypoint_id=None):
+    def set_path(self, waypoints, target_coord=None, waypoint_id=None):
         if self.has_selected():
             if target_coord is not None:  # If we want to move to a certain coord (find the closest waypoint)
-                self._target_waypoint = waypoint_graph.find_nearest_waypoint(target_coord)
-                path = waypoint_graph.build_path([], waypoint_id, self._curr_waypoint, self._target_waypoint)
+                self._target_waypoint = waypoints.find_nearest_waypoint(target_coord)
+                path = waypoints.build_path([], waypoint_id, self._curr_waypoint, self._target_waypoint)
             else:
-                path = waypoint_graph.build_path([], waypoint_id, self._curr_waypoint, None)
+                path = waypoints.build_path([], waypoint_id, self._curr_waypoint, None)
 
             if path is not None:
                 self._moving = True
@@ -105,13 +105,13 @@ class NPC(Actor):
 
     def _update(self, coord):
         self._coord = coord
-        self._shape = pygame.Rect(self._coord.get_coord(), (NPC.WIDTH, NPC.HEIGHT))
+        self._rect = pygame.Rect(self._coord.get_coord(), (NPC.WIDTH, NPC.HEIGHT))
 
     def has_collided(self, entity):
         if isinstance(entity, tuple):
-            return self._shape.collidepoint(entity)
+            return self._rect.collidepoint(entity)
 
-        return self._shape.colliderect(entity)
+        return self._rect.colliderect(entity)
 
     def get_country(self):
         return self._country
@@ -186,8 +186,8 @@ class Soldier(NPC, ABC):
     def get_weapon(self):
         return self._weapon
 
-    def get_shape(self):
-        return self._shape
+    def get_rect(self):
+        return self._rect
 
     def get_shot_chance(self):
         return self._shot_chance
@@ -200,7 +200,7 @@ class Weapon(Actor, ABC):
 
     def __init__(self, gun_type, coord=None, width=None, height=None):
         super().__init__(coord, width, height)
-        self._shape = pygame.Rect((0, 0), (10, 10))
+        self._rect = pygame.Rect((0, 0), (10, 10))
         self._colour = pygame.Color(0, 0, 0)
 
         self._gun_type = gun_type
@@ -211,10 +211,10 @@ class Weapon(Actor, ABC):
         return f"Gun{self._gun_type}: capacity: {self._ammo}"
 
     def draw(self, screen):
-        pygame.draw.rect(screen, self._colour, self._shape)
+        pygame.draw.rect(screen, self._colour, self._rect)
 
     def act(self):
-        self._shape = pygame.Rect(self._coord.get_coord(), (Weapon.WIDTH, Weapon.HEIGHT))
+        self._rect = pygame.Rect(self._coord.get_coord(), (Weapon.WIDTH, Weapon.HEIGHT))
 
     def lock_to_owner(self, coord):
         self._coord = coord
