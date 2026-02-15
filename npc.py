@@ -26,7 +26,7 @@ class NPC(Actor):
 
         self._engaged = False
         self._moving = False
-        self._idle = False
+        self._idle = True
 
         self._path = []
         self._curr_waypoint_graph = waypoint_graph

@@ -1,3 +1,4 @@
+import random
 from abc import ABC, abstractmethod
 import pygame
 
@@ -17,6 +18,8 @@ class Trench(Actor, ABC):
         self._ground_colour = ground_colour
         self._rect = pygame.Rect(coord.get_coord(), (self._width, height))
         self._boarder_rect = pygame.Rect(coord.get_coord(), (self._width, height))
+        self._proximity_x = self._rect.topleft[0] - 10, self._rect.topright[0]
+        self._proximity_y = self._rect.topleft[1], self._rect.bottomleft[1]
 
         self._waypoint_graph = Graph(self._width, height, 20)
         self._build_waypoints()
@@ -50,10 +53,7 @@ class Trench(Actor, ABC):
         self._boarder_rect = pygame.Rect(self._coord.get_coord(), (self._width, self._height))
 
     def _build_waypoints(self):
-        coord_width = self._rect.topleft[0] - 10, self._rect.topright[0]
-        coord_height = self._rect.topleft[1], self._rect.bottomleft[1]
-
-        self._waypoint_graph.build(coord_width, coord_height)
+        self._waypoint_graph.build(self._proximity_x, self._proximity_y)
         print([node.get_neighbours() for node in self._waypoint_graph.get_nodes()])
 
     def _update_curr_soldiers(self):
@@ -76,6 +76,9 @@ class Trench(Actor, ABC):
             self._outline_colour = (255, 255, 255)
         else:
             self._outline_colour = (207, 185, 151)
+
+    def get_proximity(self):
+        return [self._proximity_x, self._proximity_y]
 
     def get_waypoint_graph(self):
         return self._waypoint_graph

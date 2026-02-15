@@ -1,0 +1,26 @@
+{
+  "trenchLocations": [
+    {
+      "trenchId": "trenchOne",
+      "frontLine": {
+        "rangeX": [0, 150],
+        "rangeY": [0, 0]
+      },
+      "supportLine": {
+        "rangeX": [],
+        "rangeY": []
+      }
+    },
+    {
+      "trenchId": "trenchTwo",
+      "frontLine": {
+        "rangeX": [],
+        "rangeY": []
+      },
+      "supportLine": {
+        "rangeX": [],
+        "rangeY": []
+      }
+    }
+  ]
+}
