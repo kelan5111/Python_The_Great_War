@@ -18,8 +18,9 @@ class Trench(Actor, ABC):
         self._rect = pygame.Rect(coord.get_coord(), (self._width, height))
         self._boarder_rect = pygame.Rect(coord.get_coord(), (self._width, height))
 
-        self._trench_waypoints = Graph(self._width, height, 20)
+        self._waypoint_graph = Graph(self._width, height, 20)
         self._build_waypoints()
+        self._waypoint_graph.debug()
 
         self._total_capacity = total_capacity
         self._country = country
@@ -34,7 +35,7 @@ class Trench(Actor, ABC):
         # Drawing the trench's ground
         pygame.draw.rect(screen, self._ground_colour, self._rect)
 
-        self._trench_waypoints.draw(screen)
+        self._waypoint_graph.draw(screen)
 
     def act(self, mouse_pos):
         self._update_curr_soldiers()
@@ -49,15 +50,17 @@ class Trench(Actor, ABC):
         self._boarder_rect = pygame.Rect(self._coord.get_coord(), (self._width, self._height))
 
     def _build_waypoints(self):
-        coord_width = self._rect.topleft[0], self._rect.topright[0]
+        coord_width = self._rect.topleft[0] - 10, self._rect.topright[0]
         coord_height = self._rect.topleft[1], self._rect.bottomleft[1]
 
-        self._trench_waypoints.build(coord_width, coord_height)
+        self._waypoint_graph.build(coord_width, coord_height)
+        print([node.get_neighbours() for node in self._waypoint_graph.get_nodes()])
 
     def _update_curr_soldiers(self):
         for actor in self._actors:
-            if self.has_collided(actor):
-                self._curr_soldiers.append(actor)
+            if self.has_collided(actor) and self.has_selected():
+                if actor not in self._curr_soldiers:
+                    self._curr_soldiers.append(actor)
 
     def has_collided(self, other):
         if isinstance(other, tuple):
@@ -73,6 +76,9 @@ class Trench(Actor, ABC):
             self._outline_colour = (255, 255, 255)
         else:
             self._outline_colour = (207, 185, 151)
+
+    def get_waypoint_graph(self):
+        return self._waypoint_graph
 
     def get_country(self):
         return self._country

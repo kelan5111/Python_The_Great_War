@@ -12,7 +12,7 @@ class NPC(Actor):
     HEIGHT = 20
     SPEED = 0.5
 
-    def __init__(self, waypoint, country, actors, coord, width, height):
+    def __init__(self, waypoint_graph, waypoint, country, actors, coord, width, height):
         super().__init__(coord, width, height)
         self._curr_waypoint = waypoint
         self._coord = waypoint.get_coord()
@@ -26,8 +26,11 @@ class NPC(Actor):
 
         self._engaged = False
         self._moving = False
+        self._idle = False
 
         self._path = []
+        self._curr_waypoint_graph = waypoint_graph
+        self._next_waypoint_graph = None
         self._target_waypoint = None
 
     def draw(self, screen):
@@ -39,11 +42,25 @@ class NPC(Actor):
             pygame.draw.rect(screen, border_color, self._rect, border_thickness)
 
     def act(self, mouse_pos):
+        self._execute_idle_movement()
+        self._execute_player_movement()
+
+    def _execute_idle_movement(self):
+        if self._idle and not self._moving:
+            neighbours = self._curr_waypoint.get_neighbours()
+            next_coord = random.choice(neighbours).get_coord()
+            self.set_path(next_coord)
+
+    def _execute_player_movement(self):
         if not self._engaged:
             if self._target_waypoint is None:
                 if self._path:
                     self._target_waypoint = self._path.pop()
                 else:
+                    if self._next_waypoint_graph is not None:
+                        self._switch_waypoint_graph()
+
+                    self._moving = False
                     return
 
             target_coord = self._target_waypoint.get_coord()
@@ -53,25 +70,25 @@ class NPC(Actor):
                 self._target_waypoint = None
                 return
 
-            next_coord = self._calc_next_coord(target_coord)
+            next_coord = self._calc_next_move(target_coord)
             self._update(next_coord)
 
-    def set_path(self, waypoints, target_coord=None, waypoint_id=None):
-        if self.has_selected():
-            if target_coord is not None:  # If we want to move to a certain coord (find the closest waypoint)
-                self._target_waypoint = waypoints.find_nearest_waypoint(target_coord)
-                path = waypoints.build_path([], waypoint_id, self._curr_waypoint, self._target_waypoint)
-            else:
-                path = waypoints.build_path([], waypoint_id, self._curr_waypoint, None)
+    def set_path(self, target_coord=None, waypoint_id=None):
+        if target_coord is not None:  # If we want to move to a certain coord (find the closest waypoint)
+            self._target_waypoint = self._curr_waypoint_graph.find_nearest_waypoint(target_coord)
+            path = self._curr_waypoint_graph.build_path([self._target_waypoint], waypoint_id, self._curr_waypoint,
+                                                        self._target_waypoint)
+        else:
+            path = self._curr_waypoint_graph.build_path([], waypoint_id, self._curr_waypoint, None)
 
-            if path is not None:
-                self._moving = True
-                self._path = path
-                self._target_waypoint = None
-            else:
-                self._moving = False
+        if path is not None:
+            self._moving = True
+            self._path = path
+            self._target_waypoint = None
+        else:
+            self._moving = False
 
-    def _calc_next_coord(self, target_coord):
+    def _calc_next_move(self, target_coord):
         step = 1
         new_x = self._coord.get_x()
         new_y = self._coord.get_y()
@@ -99,6 +116,14 @@ class NPC(Actor):
 
         return None
 
+    def _switch_waypoint_graph(self):
+        print(True)
+        # Swap the current with the new graph after current path is finished
+        self._curr_waypoint_graph = self._next_waypoint_graph
+        self._next_waypoint_graph = None
+
+        self.set_path(self._coord)
+
     @abstractmethod
     def _attack(self):
         pass
@@ -114,13 +139,26 @@ class NPC(Actor):
             soldier_rect = other.get_rect()
             return self._rect.colliderect(soldier_rect)
 
+    def set_idle(self, idle):
+        self._idle = idle
+
+    def set_next_waypoint_graph(self, waypoint_graph):
+        self._next_waypoint_graph = waypoint_graph
+
+    def get_curr_waypoint_graph(self):
+        return self._curr_waypoint_graph
+
     def get_country(self):
         return self._country
 
+    def is_idle(self):
+        return self._idle
+
 
 class Soldier(NPC, ABC):
-    def __init__(self, waypoint, country, actors, weapon=None, coord=None, width=None, height=None):
-        super().__init__(waypoint, country, actors, coord, width, height)
+    def __init__(self, curr_waypoint_graph, waypoint, country, actors, weapon=None, coord=None, width=None,
+                 height=None):
+        super().__init__(curr_waypoint_graph, waypoint, country, actors, coord, width, height)
 
         self._curr_waypoint = waypoint
         self._country = country

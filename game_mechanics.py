@@ -83,6 +83,9 @@ class Group:
     def add(self, actor):
         self.__actors.append(actor)
 
+    def find(self, obj_type):
+        return [actor for actor in self.__actors if isinstance(actor, obj_type)]
+
     def __remove(self):
         for actor in self.__actors:
             if not actor.is_alive():

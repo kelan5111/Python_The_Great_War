@@ -91,7 +91,7 @@ class Graph:
         self.__nodes = []
 
     def __str__(self):
-        print(self.__nodes)
+        return "Graph"
 
     def build(self, width_coord=None, height_coord=None):
         temp = []
@@ -114,23 +114,19 @@ class Graph:
         self.__build_graph(temp)
 
     def __build_graph(self, temp):
-        for y in range(len(temp) - 1):
-            for x in range(len(temp[y]) - 1):
-                current_node = temp[y][x]
+        for col in range(len(temp)):
+            for row in range(len(temp[col])):
+                current_node = temp[col][row]
 
                 if current_node not in self.__nodes:
                     self.__nodes.append(current_node)
-
                     current_node.show()
 
-                possible_pos = [(x, y - 1), (x, y + 1), (x - 1, y), (x + 1, y)]
+                possible_pos = [(col, row - 1), (col, row + 1), (col - 1, row), (col + 1, row)]
 
-                for poss_x, poss_y in possible_pos:
-                    if 0 <= poss_x < self.__width and 0 <= poss_y < self.__height:
-                        current_node.add_neighbour(temp[poss_y][poss_x])
-
-    def stitch_graph(self, ):
-        pass
+                for poss_col, poss_row in possible_pos:
+                    if 0 <= poss_col < len(temp) and 0 <= poss_row < len(temp[poss_col]):
+                        current_node.add_neighbour(temp[poss_col][poss_row])
 
     def draw(self, screen):
         if self.__debug:
@@ -175,12 +171,13 @@ class Graph:
         return None
 
     def build_path(self, path, waypoint_id, start, target_waypoint=None):
-        if target_waypoint is None:
-            # BFS search for path without a target
-            target_waypoint = self.__breadth_first_search(start, waypoint_id)
-        else:
-            # BFS search for path with a target
-            target_waypoint = self.__breadth_first_search(start, target_waypoint.get_ID())
+        if len(path) == 0:
+            if target_waypoint is None:
+                # BFS search for path without a target
+                target_waypoint = self.__breadth_first_search(start, waypoint_id)
+            else:
+                # BFS search for path with a target
+                target_waypoint = self.__breadth_first_search(start, target_waypoint.get_ID())
 
         # Base case: until we reach the start node
         parent = target_waypoint.get_parent()
@@ -188,11 +185,6 @@ class Graph:
             return path
 
         path.append(parent)  # Push onto stack
-
-        # If debugging then show the path
-        if parent.is_showing():
-            yellow_path = pygame.Color(255, 248, 14)
-            parent.set_debug_colour(yellow_path)
 
         # Recursive case
         return self.build_path(path, waypoint_id, start, parent)

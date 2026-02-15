@@ -22,13 +22,13 @@ class Game:
 
         self.__group = Group(self.__screen)
         self.__field_waypoints = Graph(self.__width, self.__height, 30)
+
         self.__select_box = SelectBox(player_country)
 
     def run(self):
         clock = pygame.time.Clock()
 
         self.__initialize()
-        # self.__world_waypoints.debug_game()
 
         while self.__running:
             mouse_pos = pygame.mouse.get_pos()
@@ -52,6 +52,8 @@ class Game:
         pygame.quit()
 
     def __initialize(self):
+        pygame.display.set_caption('The Great War')
+
         actors = self.__group.get_actors()
 
         front_line_one = FrontLineTrench(50, self.__height, 10, Coordinate(150, 0), self.__player, self.__ground_colour,
@@ -64,7 +66,6 @@ class Game:
                                          self.__ground_colour, actors)
 
         self.__field_waypoints.build()
-        # self.__field_waypoints.debug_game()
 
         self.__group.add(front_line_one)
         self.__group.add(support_line_one)
@@ -79,7 +80,9 @@ class Game:
             starting_waypoint = self.__field_waypoints.find_nearest_waypoint(Coordinate(rand_x, rand_y))
 
             weapon = Weapon("none")
-            soldier = Soldier(starting_waypoint, self.__countries[random.randint(0, 1)], actors, weapon)
+            random_country = self.__countries[random.randint(0, 1)]
+            soldier = Soldier(self.__field_waypoints, starting_waypoint, random_country, actors, weapon)
+
             self.__group.add(soldier)
             self.__group.add(weapon)
 
@@ -96,6 +99,7 @@ class Game:
                 # If we are dragging a select box
                 if self.__select_box.is_pressed():
                     self.__select_box.end_drag(self.__group.get_actors())
+
                 # If we are selecting a type from collision_options manually on screen
                 for actor in self.__group.get_actors():
                     if isinstance(actor, Soldier):
@@ -107,8 +111,17 @@ class Game:
             if event.button == 3:
                 for actor in self.__group.get_actors():
                     if isinstance(actor, Soldier):
-                        actor.set_path(self.__field_waypoints, mouse_pos)
-                        actor.set_select(False)
+                        if actor.has_selected() and not actor.is_idle():
+                            actor.set_path(mouse_pos)
+                            actor.set_select(False)
+
+                            options = (trench for trench in self.__group.find(Trench) if trench.has_hover())
+                            selected_trench = next(options, None)
+
+                            if selected_trench is not None:
+                                # Change the waypoint graph of the soldier to the trench's
+                                actor.set_next_waypoint_graph(selected_trench.get_waypoint_graph())
+                                actor.set_idle(True)
 
                     # Unselect Trench once selected
                     elif isinstance(actor, Trench):
@@ -126,4 +139,3 @@ class Game:
                     if isinstance(actor, Trench) and actor.get_country() == self.__player:
                         if actor.has_hover():
                             actor.set_select(True)
-
