@@ -5,7 +5,7 @@ import json
 from waypoint import Graph
 from coordinate import Coordinate
 from npc import Soldier, Country, Weapon
-from game_mechanics import SelectBox, Group, JSONLoader
+from game_mechanics import SelectBox, Group, Button
 from trench import FrontLineTrench, SupportTrench, Trench
 
 
@@ -28,6 +28,7 @@ class Game:
 
     def run(self):
         clock = pygame.time.Clock()
+        pygame.font.init()
 
         self.__initialize()
 
@@ -57,17 +58,20 @@ class Game:
 
         actors = self.__group.get_actors()
 
-        front_line_one = FrontLineTrench(50, self.__height, 10, Coordinate(150, 0), self.__player, self.__ground_colour,
+        front_line_one = FrontLineTrench(Coordinate(150, 0), 50, self.__height, 10, self.__player, self.__ground_colour,
                                          actors)
-        support_line_one = SupportTrench(50, self.__height, 50, Coordinate(50, 0), self.__player, self.__ground_colour,
+        support_line_one = SupportTrench(Coordinate(50, 0), 50, self.__height, 50, self.__player, self.__ground_colour,
                                          actors)
-        front_line_two = FrontLineTrench(50, self.__height, 10, Coordinate(self.__width - 200, 0), Country.GERMANY,
+        front_line_two = FrontLineTrench(Coordinate(self.__width - 200, 0), 50, self.__height, 10, Country.GERMANY,
                                          self.__ground_colour, actors)
-        support_line_two = SupportTrench(50, self.__height, 50, Coordinate(self.__width - 100, 0), Country.GERMANY,
+        support_line_two = SupportTrench(Coordinate(self.__width - 100, 0), 50, self.__height, 50, Country.GERMANY,
                                          self.__ground_colour, actors)
 
         trench_spawn = [front_line_one.get_proximity(), front_line_two.get_proximity()]
         starting_trenches = [support_line_one, support_line_two]
+
+        # Buttons
+        button = Button(Coordinate(500, 100), 400, 400, (255, 0, 0), (255, 255, 255), "Button", 10, (0, 0, 0))
 
         self.__field_waypoints.build()
 
@@ -75,6 +79,7 @@ class Game:
         self.__group.add(support_line_one)
         self.__group.add(front_line_two)
         self.__group.add(support_line_two)
+        self.__group.add(button)
 
         self.__spawn_soldier(None, 10, trench_spawn, starting_trenches)
 
@@ -98,6 +103,9 @@ class Game:
                         if (actor.get_country() == self.__player and
                                 actor.has_collided(mouse_pos)):
                             actor.set_select(True)
+
+                    elif isinstance(actor, Button):
+                        actor.set_select(False)
 
             # Any soldier is selected they will move to mouse pos
             if event.button == 3:
@@ -125,6 +133,10 @@ class Game:
             if event.button == 1:
                 self.__select_box.pressed(mouse_pos)
 
+                for actor in self.__group.get_actors():
+                    if isinstance(actor, Button) and actor.has_collided(mouse_pos):
+                        actor.set_select(True)
+
             # Select Trench
             if event.button == 3:
                 for actor in self.__group.get_actors():
@@ -146,7 +158,7 @@ class Game:
             random_country = random.choice(self.__countries)
             weapon = Weapon("none")
 
-            soldier = Soldier(trench_waypoint_graph, starting_waypoint, random_country, self.__group.get_actors(), weapon)
+            soldier = Soldier(Coordinate(rand_x, rand_y), 20, 20, trench_waypoint_graph, random_country, self.__group.get_actors(), weapon)
 
             self.__group.add(soldier)
             self.__group.add(weapon)

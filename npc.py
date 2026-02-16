@@ -8,17 +8,15 @@ import random
 
 class NPC(Actor):
     ID = 0
-    WIDTH = 20
-    HEIGHT = 20
     SPEED = 0.5
 
-    def __init__(self, waypoint_graph, waypoint, country, actors, coord, width, height):
+    def __init__(self, coord, width, height, waypoint_graph, country, actors):
         super().__init__(coord, width, height)
-        self._curr_waypoint = waypoint
-        self._coord = waypoint.get_coord()
+        self._width = width
+        self._height = height
         self._country = country
         self._colour = country.value
-        self._rect = pygame.Rect(self._coord.get_coord(), (NPC.WIDTH, NPC.HEIGHT))
+        self._rect = pygame.Rect(self._coord.get_coord(), (self._width, self._height))
         self._ID = NPC.ID + 1
 
         self._speed = NPC.SPEED
@@ -32,6 +30,9 @@ class NPC(Actor):
         self._curr_waypoint_graph = waypoint_graph
         self._next_waypoint_graph = None
         self._target_waypoint = None
+
+        self._curr_waypoint = self._curr_waypoint_graph.find_nearest_waypoint(coord.get_coord())
+        self._coord = self._curr_waypoint.get_coord()
 
     def draw(self, screen):
         pygame.draw.rect(screen, self._colour, self._rect)
@@ -130,14 +131,7 @@ class NPC(Actor):
 
     def _update(self, coord):
         self._coord = coord
-        self._rect = pygame.Rect(self._coord.get_coord(), (NPC.WIDTH, NPC.HEIGHT))
-
-    def has_collided(self, other):
-        if isinstance(other, tuple):
-            return self._rect.collidepoint(other)
-        elif isinstance(other, Soldier):
-            soldier_rect = other.get_rect()
-            return self._rect.colliderect(soldier_rect)
+        self._rect = pygame.Rect(self._coord.get_coord(), (self._width, self._height))
 
     def set_idle(self, idle):
         self._idle = idle
@@ -156,11 +150,9 @@ class NPC(Actor):
 
 
 class Soldier(NPC, ABC):
-    def __init__(self, curr_waypoint_graph, waypoint, country, actors, weapon=None, coord=None, width=None,
-                 height=None):
-        super().__init__(curr_waypoint_graph, waypoint, country, actors, coord, width, height)
+    def __init__(self, coord, width, height, curr_waypoint_graph, country, actors, weapon):
+        super().__init__(coord, width, height, curr_waypoint_graph, country, actors)
 
-        self._curr_waypoint = waypoint
         self._country = country
         self._weapon = weapon
         self._enemy_lock = None
@@ -237,14 +229,13 @@ class Weapon(Actor, ABC):
     WIDTH = 10
     HEIGHT = 20
 
-    def __init__(self, gun_type, coord=None, width=None, height=None):
-        super().__init__(coord, width, height)
-        self._rect = pygame.Rect((0, 0), (10, 10))
+    def __init__(self, gun_type, coord=Coordinate(-100, -100)):
+        super().__init__(coord, width=0, height=0)
         self._colour = pygame.Color(0, 0, 0)
 
         self._gun_type = gun_type
         self._ammo = Weapon.AMMO_CAPACITY
-        self._coord = Coordinate(-100, -100)
+        self._coord = coord
 
     def __str__(self):
         return f"Gun{self._gun_type}: capacity: {self._ammo}"

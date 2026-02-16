@@ -11,6 +11,7 @@ class Actor(ABC):
         self._coord = coord
         self._width = width
         self._height = height
+        self._rect = pygame.Rect(coord.get_coord(), (width, height))
 
         self._alive = True
         self._select = False
@@ -23,6 +24,13 @@ class Actor(ABC):
     @abstractmethod
     def act(self, mouse_pos):
         pass
+
+    def has_collided(self, other):
+        if isinstance(other, tuple):
+            return self._rect.collidepoint(other)
+        elif isinstance(other, npc.Soldier):
+            soldier_rect = other.get_rect()
+            return self._rect.colliderect(soldier_rect)
 
     def get_coord(self):
         return self._coord
@@ -63,6 +71,9 @@ class Actor(ABC):
     def get_coord(self):
         return self._coord
 
+    def get_rect(self):
+        return self._rect
+
 
 class Group:
     def __init__(self, screen):
@@ -98,16 +109,16 @@ class Group:
 class SelectBox(Actor, ABC):
     OUTLINE_COLOUR = (0, 0, 0)
 
-    def __init__(self, country, coord=None, width=None, height=None):
-        super().__init__(coord, width, height)
-        self.__rect = pygame.Rect(0, 0, 0, 0)
+    def __init__(self, country):
+        super().__init__(coord=Coordinate(0, 0), width=0, height=0)
+        self._rect = pygame.Rect(0, 0, 0, 0)
         self.__country = country
         self.__start_pos = None
         self.__pressed = False
 
     def draw(self, screen):
         if self.__pressed:
-            pygame.draw.rect(screen, self.OUTLINE_COLOUR, self.__rect, 3)
+            pygame.draw.rect(screen, self.OUTLINE_COLOUR, self._rect, 3)
 
     def act(self, mouse_pos):
         self.execute(mouse_pos)
@@ -128,7 +139,7 @@ class SelectBox(Actor, ABC):
         rect_w = abs(start_x - current_x)
         rect_h = abs(start_y - current_y)
 
-        self.__rect = pygame.Rect(rect_x, rect_y, rect_w, rect_h)
+        self._rect = pygame.Rect(rect_x, rect_y, rect_w, rect_h)
 
     def end_drag(self, actors):
         if not self.__pressed:
@@ -137,7 +148,7 @@ class SelectBox(Actor, ABC):
         self.__pressed = False
         self.__select(actors)
 
-        self.__rect = pygame.Rect(0, 0, 0, 0)
+        self._rect = pygame.Rect(0, 0, 0, 0)
 
     def __select(self, actors):
         for actor in actors:
@@ -147,13 +158,6 @@ class SelectBox(Actor, ABC):
                     actor.set_select(True)
                 else:
                     actor.set_select(False)
-
-    def has_collided(self, other):
-        if isinstance(other, tuple):
-            return self.__rect.collidepoint(other)
-        elif isinstance(other, npc.Soldier):
-            soldier_rect = other.get_rect()
-            return self.__rect.colliderect(soldier_rect)
 
     def pressed(self, mouse_pos):
         self.__pressed = True
@@ -184,3 +188,38 @@ class JSONLoader:
 
     def __extract(self):
         pass
+
+
+class Button(Actor, ABC):
+    def __init__(self, coord, width, height, colour, pressed_colour, text, text_size, text_colour):
+        super().__init__(coord, width, height)
+
+        self.__colour = colour
+        self.__pressed_colour = pressed_colour
+        self.__outline_colour = (0, 0, 0)
+        self.__rect = pygame.Rect(coord.get_coord(), (width, height))
+
+        self.__text = pygame.font.SysFont("verdana", text_size).render(text, True, text_colour)
+        self.__text_rect = self.__text.get_rect()
+
+    def draw(self, screen):
+        if self._alive:
+            pygame.draw.rect(screen, self.__colour, self.__rect)
+            self.__text_rect.center = ((self.__rect.x // 2), (self.__rect.y // 2))
+            screen.blit(self.__text, self.__text_rect)
+            # Outline rect
+            pygame.draw.rect(screen, self.__outline_colour, self.__rect, 4)
+            # Need to add the text to the center of the rect
+
+    def act(self, mouse_pos):
+        self.__check_pressed()
+
+    def _update_rect(self):
+        self.__rect = pygame.Rect(self._coord.get_coord(), (self._width, self._height))
+        self.__text_rect = self.__text.get_rect()
+
+    def __check_pressed(self):
+        if self._select:
+            self.__outline_colour = self.__pressed_colour
+        else:
+            self.__outline_colour = (0, 0, 0)
