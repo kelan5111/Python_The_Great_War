@@ -1,0 +1,189 @@
+from abc import ABC
+
+import pygame
+
+import npc
+from coordinate import Coordinate
+from game_mechanics import Actor
+
+
+class SelectBox(Actor, ABC):
+    OUTLINE_COLOUR = (0, 0, 0)
+
+    def __init__(self, country):
+        super().__init__(coord=Coordinate(0, 0), width=0, height=0)
+        self._rect = pygame.Rect(0, 0, 0, 0)
+        self.__country = country
+        self.__start_pos = None
+        self.__pressed = False
+
+    def draw(self, screen):
+        if self.__pressed:
+            pygame.draw.rect(screen, self.OUTLINE_COLOUR, self._rect, 3)
+
+    def act(self, mouse_pos):
+        self.execute(mouse_pos)
+
+    def execute(self, mouse_pos):
+        if not self.__pressed:
+            return
+
+        self.__update(mouse_pos)
+        # self.__select(soldiers)
+
+    def __update(self, mouse_pos):
+        start_x, start_y = self.__start_pos.get_x(), self.__start_pos.get_y()
+        current_x, current_y = mouse_pos[0], mouse_pos[1]
+
+        rect_x = min(start_x, current_x)
+        rect_y = min(start_y, current_y)
+        rect_w = abs(start_x - current_x)
+        rect_h = abs(start_y - current_y)
+
+        self._rect = pygame.Rect(rect_x, rect_y, rect_w, rect_h)
+
+    def end_drag(self, actors):
+        if not self.__pressed:
+            return
+
+        self.__pressed = False
+        self.__select(actors)
+
+        self._rect = pygame.Rect(0, 0, 0, 0)
+
+    def __select(self, actors):
+        for actor in actors:
+            if isinstance(actor, npc.Soldier):
+                if (self.has_collided(actor) and
+                        actor.get_country() == self.__country):
+                    actor.set_select(True)
+                else:
+                    actor.set_select(False)
+
+    def pressed(self, mouse_pos):
+        self.__pressed = True
+        self.__start_pos = Coordinate(mouse_pos[0], mouse_pos[1])
+
+    def is_pressed(self):
+        return self.__pressed
+
+
+class Button:
+    def __init__(self, coord, width, height, colour, pressed_colour, text, text_size, text_colour):
+        self.__coord = coord
+        self.__width = width
+        self.__height = height
+        self.__colour = colour
+        self.__pressed_colour = pressed_colour
+        self.__outline_colour = (0, 0, 0)
+        self.__rect = pygame.Rect(coord.get_coord(), (width, height))
+
+        self.__text_size = text_size
+        self.__text_colour = text_colour
+        self.__text = text
+        self.__text_font = pygame.font.SysFont("verdana", self.__text_size).render(text, True, text_colour)
+        self.__text_rect = self.__text_font.get_rect()
+
+        self.__select = False
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, self.__colour, self.__rect)
+        # Outline rect
+        pygame.draw.rect(screen, self.__outline_colour, self.__rect, 4)
+        # Text
+        self.__text_rect.center = self.__rect.center
+        screen.blit(self.__text_font, self.__text_rect)
+
+    def update(self):
+        self.__check_pressed()
+        self._update_rect()
+
+    def _update_rect(self):
+        self.__rect = pygame.Rect(self.__coord.get_coord(), (self.__width, self.__height))
+        self.__text_font = pygame.font.SysFont("verdana", self.__text_size).render(self.__text, True, self.__text_colour)
+
+    def __check_pressed(self):
+        if self.__select:
+            self.__outline_colour = self.__pressed_colour
+        else:
+            self.__outline_colour = (0, 0, 0)
+
+    def has_collided(self, other):
+        if isinstance(other, tuple):
+            return self.__rect.collidepoint(other)
+
+    def set_text_size(self, text_size):
+        self.__text_size = text_size
+
+    def set_text_colour(self, text_colour):
+        self.__text_colour = text_colour
+
+    def set_diameters(self, width, height):
+        self.__width = width
+        self.__height = height
+
+    def set_coord(self, x, y):
+        self.__coord = Coordinate(x, y)
+
+    def get_coord(self):
+        return self.__coord
+
+    def set_select(self, select):
+        self.__select = select
+
+    def has_selected(self):
+        return self.__select
+
+    def get_width(self):
+        return self.__width
+
+    def get_height(self):
+        return self.__height
+
+
+class InteractiveTab:
+    def __init__(self, screen_width):
+        self.__width = screen_width
+        self.__height = 40
+        self.__coord = Coordinate(0, 0)
+        self.__body_rect = pygame.Rect(self.__coord.get_coord(), (self.__width, self.__height))
+
+        self.__icon_width = 40
+        self.__icon_height = self.__height
+
+        self.__num_sections = 0
+        self.__max_sections = self.__width // self.__icon_width
+        self.__section_spaced = self.__width // self.__max_sections
+        self.__colour = (255, 255, 255)
+
+        self.__sections = []
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, self.__colour, self.__body_rect)
+        # Drawing the sections
+        for section in self.__sections:
+            section.draw(screen)
+
+    def update(self):
+        for section in self.__sections:
+            section.update()
+
+    def add_icon(self, icon):
+        if self.__num_sections > self.__max_sections:
+            print("Unable to add the icon.")
+            return
+
+        self.__resize_icon(icon)
+        self.__num_sections += 1
+        self.__sections.append(icon)
+
+    def __resize_icon(self, icon):
+        new_x = self.__num_sections * self.__section_spaced
+        new_y = new_x
+
+        icon.set_coord(new_x, new_y)
+        icon.set_diameters(self.__icon_width, self.__icon_height)
+        icon.set_text_size(2)
+
+    def get_sections(self):
+        return self.__sections

@@ -5,7 +5,8 @@ import json
 from waypoint import Graph
 from coordinate import Coordinate
 from npc import Soldier, Country, Weapon
-from game_mechanics import SelectBox, Group, Button
+from game_mechanics import Group, Actor
+from game_gui import SelectBox, Button, InteractiveTab
 from trench import FrontLineTrench, SupportTrench, Trench
 
 
@@ -25,12 +26,16 @@ class Game:
         self.__field_waypoints = Graph(self.__width, self.__height, 30)
 
         self.__select_box = SelectBox(player_country)
+        self.__interactive_tab = InteractiveTab(self.__width)
 
     def run(self):
-        clock = pygame.time.Clock()
         pygame.font.init()
+        pygame.init()
 
-        self.__initialize()
+        clock = pygame.time.Clock()
+
+        self.__initialize_objects()
+        self.__initialize_waypoints()
 
         while self.__running:
             mouse_pos = pygame.mouse.get_pos()
@@ -46,17 +51,21 @@ class Game:
             self.__group.draw()
             self.__group.act(mouse_pos)
 
-            self.__field_waypoints.draw(self.__screen)
+            self.__interactive_tab.draw(self.__screen)
+            self.__interactive_tab.update()
 
             pygame.display.flip()
             clock.tick(60)
 
         pygame.quit()
 
-    def __initialize(self):
+    def __initialize_objects(self):
         pygame.display.set_caption('The Great War')
 
         actors = self.__group.get_actors()
+
+        button_one = Button(Coordinate(0, 0), 0, 0, (255, 0, 0), (255, 255, 255), "Button One", 0, (0, 0, 0))
+        self.__interactive_tab.add_icon(button_one)
 
         front_line_one = FrontLineTrench(Coordinate(150, 0), 50, self.__height, 10, self.__player, self.__ground_colour,
                                          actors)
@@ -70,20 +79,18 @@ class Game:
         trench_spawn = [front_line_one.get_proximity(), front_line_two.get_proximity()]
         starting_trenches = [support_line_one, support_line_two]
 
-        # Buttons
-        button = Button(Coordinate(500, 100), 400, 400, (255, 0, 0), (255, 255, 255), "Button", 10, (0, 0, 0))
-
-        self.__field_waypoints.build()
-
         self.__group.add(front_line_one)
         self.__group.add(support_line_one)
         self.__group.add(front_line_two)
         self.__group.add(support_line_two)
-        self.__group.add(button)
 
         self.__spawn_soldier(None, 10, trench_spawn, starting_trenches)
 
         self.__group.add(self.__select_box)
+
+    def __initialize_waypoints(self):
+        self.__field_waypoints.build()
+        self.__field_waypoints.draw(self.__screen)
 
     def __draw_world(self):
         self.__screen.fill(self.__ground_colour)
@@ -104,8 +111,9 @@ class Game:
                                 actor.has_collided(mouse_pos)):
                             actor.set_select(True)
 
-                    elif isinstance(actor, Button):
-                        actor.set_select(False)
+                for section in self.__interactive_tab.get_sections():
+                    if isinstance(section, Button):
+                        section.set_select(False)
 
             # Any soldier is selected they will move to mouse pos
             if event.button == 3:
@@ -133,9 +141,10 @@ class Game:
             if event.button == 1:
                 self.__select_box.pressed(mouse_pos)
 
-                for actor in self.__group.get_actors():
-                    if isinstance(actor, Button) and actor.has_collided(mouse_pos):
-                        actor.set_select(True)
+                for section in self.__interactive_tab.get_sections():
+                    if section.has_collided(mouse_pos):
+                        if isinstance(section, Button):
+                            section.set_select(True)
 
             # Select Trench
             if event.button == 3:
@@ -154,7 +163,6 @@ class Game:
 
             trench_waypoint_graph = trench.get_waypoint_graph()
 
-            starting_waypoint = trench_waypoint_graph.find_nearest_waypoint(Coordinate(rand_x, rand_y))
             random_country = random.choice(self.__countries)
             weapon = Weapon("none")
 
