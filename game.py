@@ -14,6 +14,7 @@ class Game:
     def __init__(self, player_country):
         self.__countries = [Country.GERMANY, Country.BRITAIN]
         self.__player = player_country
+        self.__player_num = random.randint(0, 1)
 
         self.__width = 1280
         self.__height = 720
@@ -76,7 +77,7 @@ class Game:
         support_line_two = SupportTrench(Coordinate(self.__width - 100, 0), 50, self.__height, 50, Country.GERMANY,
                                          self.__ground_colour, actors)
 
-        trench_spawn = [front_line_one.get_proximity(), front_line_two.get_proximity()]
+        trench_spawn = [support_line_one.get_proximity(), support_line_two.get_proximity()]
         starting_trenches = [support_line_one, support_line_two]
 
         self.__group.add(front_line_one)
@@ -154,19 +155,20 @@ class Game:
                             actor.set_select(True)
 
     def __spawn_soldier(self, country, num_soldiers, trench_coord_list, starting_trenches):
-        for soldier_count in range(num_soldiers):
-            trench_coord = random.choice(trench_coord_list)
-            trench = random.choice(starting_trenches)
+        for sides in range(0, 2):
+            print(self.__countries[sides])
+            for soldier_count in range(num_soldiers):
+                starting_trench = starting_trenches[sides]
+                starting_trench_coord = trench_coord_list[sides]
 
-            rand_x = random.randint(trench_coord[0][0], trench_coord[0][1])
-            rand_y = random.randint(trench_coord[1][0], trench_coord[1][1])
+                rand_x = random.randint(starting_trench_coord[0][0], starting_trench_coord[0][1])
+                rand_y = random.randint(starting_trench_coord[1][0], starting_trench_coord[1][1])
 
-            trench_waypoint_graph = trench.get_waypoint_graph()
+                trench_waypoint_graph = starting_trench.get_waypoint_graph()
+                weapon = Weapon("none")
 
-            random_country = random.choice(self.__countries)
-            weapon = Weapon("none")
+                soldier = Soldier(Coordinate(rand_x, rand_y), 20, 20, trench_waypoint_graph, self.__countries[sides],
+                                  self.__group.get_actors(), weapon)
 
-            soldier = Soldier(Coordinate(rand_x, rand_y), 20, 20, trench_waypoint_graph, random_country, self.__group.get_actors(), weapon)
-
-            self.__group.add(soldier)
-            self.__group.add(weapon)
+                self.__group.add(soldier)
+                self.__group.add(weapon)
