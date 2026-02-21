@@ -149,7 +149,7 @@ class NPC(Actor):
         return self._idle
 
 
-class Soldier(NPC, ABC):
+class Soldier(NPC):
     def __init__(self, coord, width, height, curr_waypoint_graph, country, actors, weapon):
         super().__init__(coord, width, height, curr_waypoint_graph, country, actors)
 
@@ -224,7 +224,7 @@ class Soldier(NPC, ABC):
         return self._shot_chance
 
 
-class Weapon(Actor, ABC):
+class Weapon(Actor):
     AMMO_CAPACITY = 20
     WIDTH = 10
     HEIGHT = 20

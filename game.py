@@ -6,19 +6,19 @@ from waypoint import Graph
 from coordinate import Coordinate
 from npc import Soldier, Country, Weapon
 from game_mechanics import Group, Actor
-from game_gui import SelectBox, Button, InteractiveTab
+from game_gui import SelectBox, Button, InteractiveTab, Console
 from trench import FrontLineTrench, SupportTrench, Trench
 
 
 class Game:
-    def __init__(self, player_country):
+    def __init__(self, width, height, player_country):
         self.__countries = [Country.GERMANY, Country.BRITAIN]
         self.__player = player_country
-        self.__player_num = random.randint(0, 1)
+        self.__player_num = random.randint(0, 2)
 
-        self.__width = 1280
-        self.__height = 720
-        self.__screen = pygame.display.set_mode((self.__width, self.__height))
+        self.__width = width
+        self.__height = height
+        self.__screen = pygame.display.set_mode((self.__width, self.__height), pygame.FULLSCREEN)
         self.__ground_colour = (48, 35, 9)
 
         self.__running = True
@@ -28,11 +28,9 @@ class Game:
 
         self.__select_box = SelectBox(player_country)
         self.__interactive_tab = InteractiveTab(self.__width)
+        self.__debug_console = Console(Coordinate(0, self.__height - 40), self.__width, 40, (0, 0, 0), '> ')
 
     def run(self):
-        pygame.font.init()
-        pygame.init()
-
         clock = pygame.time.Clock()
 
         self.__initialize_objects()
@@ -55,6 +53,9 @@ class Game:
             self.__interactive_tab.draw(self.__screen)
             self.__interactive_tab.update()
 
+            self.__debug_console.draw(self.__screen)
+            self.__debug_console.update()
+
             pygame.display.flip()
             clock.tick(60)
 
@@ -65,7 +66,7 @@ class Game:
 
         actors = self.__group.get_actors()
 
-        button_one = Button(Coordinate(0, 0), 0, 0, (255, 0, 0), (255, 255, 255), "Button One", 0, (0, 0, 0))
+        button_one = Button((255, 0, 0), (255, 255, 255), "Button One", 0, (0, 0, 0))
         self.__interactive_tab.add_icon(button_one)
 
         front_line_one = FrontLineTrench(Coordinate(150, 0), 50, self.__height, 10, self.__player, self.__ground_colour,
@@ -85,7 +86,7 @@ class Game:
         self.__group.add(front_line_two)
         self.__group.add(support_line_two)
 
-        self.__spawn_soldier(None, 10, trench_spawn, starting_trenches)
+        self.__initialize_soldiers(10, trench_spawn, starting_trenches)
 
         self.__group.add(self.__select_box)
 
@@ -97,6 +98,10 @@ class Game:
         self.__screen.fill(self.__ground_colour)
 
     def __manage_input(self, event):
+        self.__manage_mouse_input(event)
+        self.__manage_key_input(event)
+
+    def __manage_mouse_input(self, event):
         mouse_pos = pygame.mouse.get_pos()
 
         if event.type == pygame.MOUSEBUTTONUP:
@@ -147,6 +152,10 @@ class Game:
                         if isinstance(section, Button):
                             section.set_select(True)
 
+                # If a text box is selected
+                if self.__debug_console.has_collided(mouse_pos):
+                    self.__debug_console.set_active(True)
+
             # Select Trench
             if event.button == 3:
                 for actor in self.__group.get_actors():
@@ -154,9 +163,26 @@ class Game:
                         if actor.has_hover():
                             actor.set_select(True)
 
-    def __spawn_soldier(self, country, num_soldiers, trench_coord_list, starting_trenches):
+    def __manage_key_input(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_BACKSLASH:
+                if self.__debug_console.is_shown():
+                    self.__debug_console.set_show(False)
+                    self.__debug_console.set_active(False)
+                else:
+                    self.__debug_console.set_show(True)
+
+            # Managing the consoles text input
+            elif self.__debug_console.is_active():
+                if event.key == pygame.K_RETURN:
+                    self.__debug_console.clear_text()
+                elif event.key == pygame.K_BACKSPACE:
+                    self.__debug_console.remove_unicode()
+                else:
+                    self.__debug_console.insert_unicode(event.unicode)
+
+    def __initialize_soldiers(self, num_soldiers, trench_coord_list, starting_trenches):
         for sides in range(0, 2):
-            print(self.__countries[sides])
             for soldier_count in range(num_soldiers):
                 starting_trench = starting_trenches[sides]
                 starting_trench_coord = trench_coord_list[sides]

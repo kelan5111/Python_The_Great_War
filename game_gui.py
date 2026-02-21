@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 
 import pygame
 
@@ -68,11 +68,65 @@ class SelectBox(Actor, ABC):
         return self.__pressed
 
 
-class Button:
-    def __init__(self, coord, width, height, colour, pressed_colour, text, text_size, text_colour):
-        self.__coord = coord
-        self.__width = width
-        self.__height = height
+class UserInterface(ABC):
+    def __init__(self, coord=None, width=None, height=None, image=None):
+        self._coord = coord
+        self._width = width
+        self._height = height
+        self._image = image
+
+        self._select = False
+        self._hover = False
+        self._show = False
+
+    @abstractmethod
+    def draw(self, screen):
+        pass
+
+    @abstractmethod
+    def update(self):
+        pass
+
+    @abstractmethod
+    def has_collided(self, other):
+        pass
+
+    # Setters and getters
+    def set_select(self, select):
+        self._select = select
+
+    def has_selected(self):
+        return self._select
+
+    def set_hover(self, hover):
+        self._hover = hover
+
+    def set_show(self, show):
+        self._show = show
+
+    def is_shown(self):
+        return self._show
+
+    def set_diameters(self, width, height):
+        self._width = width
+        self._height = height
+
+    def set_coord(self, x, y):
+        self._coord = Coordinate(x, y)
+
+    def get_coord(self):
+        return self._coord
+
+    def get_width(self):
+        return self._width
+
+    def get_height(self):
+        return self._height
+
+
+class Button(UserInterface):
+    def __init__(self, colour, pressed_colour, text, text_size, text_colour, coord=Coordinate(0, 0), width=0, height=0):
+        super().__init__(coord, width, height)
         self.__colour = colour
         self.__pressed_colour = pressed_colour
         self.__outline_colour = (0, 0, 0)
@@ -83,8 +137,6 @@ class Button:
         self.__text = text
         self.__text_font = pygame.font.SysFont("verdana", self.__text_size).render(text, True, text_colour)
         self.__text_rect = self.__text_font.get_rect()
-
-        self.__select = False
 
     def draw(self, screen):
         pygame.draw.rect(screen, self.__colour, self.__rect)
@@ -99,11 +151,12 @@ class Button:
         self._update_rect()
 
     def _update_rect(self):
-        self.__rect = pygame.Rect(self.__coord.get_coord(), (self.__width, self.__height))
-        self.__text_font = pygame.font.SysFont("verdana", self.__text_size).render(self.__text, True, self.__text_colour)
+        self.__rect = pygame.Rect(self._coord.get_coord(), (self._width, self._height))
+        self.__text_font = pygame.font.SysFont("verdana", self.__text_size).render(self.__text, True,
+                                                                                   self.__text_colour)
 
     def __check_pressed(self):
-        if self.__select:
+        if self._select:
             self.__outline_colour = self.__pressed_colour
         else:
             self.__outline_colour = (0, 0, 0)
@@ -118,27 +171,21 @@ class Button:
     def set_text_colour(self, text_colour):
         self.__text_colour = text_colour
 
-    def set_diameters(self, width, height):
-        self.__width = width
-        self.__height = height
 
-    def set_coord(self, x, y):
-        self.__coord = Coordinate(x, y)
+class Icon(UserInterface):
+    def __init__(self, coord, width, height, image_path):
+        super().__init__(coord, width, height)
 
-    def get_coord(self):
-        return self.__coord
+        self.__image = image_path
 
-    def set_select(self, select):
-        self.__select = select
+    def draw(self, screen):
+        pass
 
-    def has_selected(self):
-        return self.__select
+    def update(self):
+        pass
 
-    def get_width(self):
-        return self.__width
-
-    def get_height(self):
-        return self.__height
+    def has_collided(self, other):
+        pass
 
 
 class InteractiveTab:
@@ -148,11 +195,11 @@ class InteractiveTab:
         self.__coord = Coordinate(0, 0)
         self.__body_rect = pygame.Rect(self.__coord.get_coord(), (self.__width, self.__height))
 
-        self.__icon_width = 40
-        self.__icon_height = self.__height
+        self.__ui_width = 40
+        self.__ui_height = self.__height
 
         self.__num_sections = 0
-        self.__max_sections = self.__width // self.__icon_width
+        self.__max_sections = self.__width // self.__ui_width
         self.__section_spaced = self.__width // self.__max_sections
         self.__colour = (255, 255, 255)
 
@@ -161,29 +208,102 @@ class InteractiveTab:
     def draw(self, screen):
         pygame.draw.rect(screen, self.__colour, self.__body_rect)
         # Drawing the sections
-        for section in self.__sections:
-            section.draw(screen)
+        for ui in self.__sections:
+            ui.draw(screen)
 
     def update(self):
-        for section in self.__sections:
-            section.update()
+        for ui in self.__sections:
+            ui.update()
 
-    def add_icon(self, icon):
+    def add_icon(self, ui):
         if self.__num_sections > self.__max_sections:
             print("Unable to add the icon.")
             return
 
-        self.__resize_icon(icon)
+        self.__resize_ui(ui)
         self.__num_sections += 1
-        self.__sections.append(icon)
+        self.__sections.append(ui)
 
-    def __resize_icon(self, icon):
+    def __resize_ui(self, ui):
         new_x = self.__num_sections * self.__section_spaced
         new_y = new_x
 
-        icon.set_coord(new_x, new_y)
-        icon.set_diameters(self.__icon_width, self.__icon_height)
-        icon.set_text_size(2)
+        ui.set_coord(new_x, new_y)
+        ui.set_diameters(self.__ui_width, self.__ui_height)
+        ui.set_text_size(2)
 
     def get_sections(self):
         return self.__sections
+
+
+class TextBox(UserInterface):
+    SIDEBAR = '|'
+
+    def __init__(self, coord, width, height, colour, prompt_symbol):
+        super().__init__(coord, width, height)
+
+        self._body_rect = pygame.Rect(coord.get_coord(), (width, height))
+        self._text = ['> ']
+        self._text_colour = (128, 255, 0)
+        self._text_size = 20
+        self._text_font = pygame.font.SysFont("verdana", self._text_size).render(self.get_text_str(), True,
+                                                                                 self._text_colour)
+        self._text_rect = self._text_font.get_rect()
+        self._prompt_symbol = prompt_symbol
+        self._colour = colour
+        self._active = False
+
+    def draw(self, screen):
+        if self._show:
+            # Drawing the body
+            pygame.draw.rect(screen, self._colour, self._body_rect)
+            # Drawing the text
+            self._text_rect = (self._body_rect.x, self._body_rect.y)
+            screen.blit(self._text_font, self._text_rect)
+
+    def update(self):
+        self._update_rect()
+
+    def _update_rect(self):
+        self._body_rect = pygame.Rect(self._coord.get_coord(), (self._width, self._height))
+        self._text_font = pygame.font.SysFont("Andale Mono", self._text_size).render(self.get_text_str(), True,
+                                                                                 self._text_colour)
+
+    def insert_unicode(self, text):
+        new_text = str(text)
+        # Remove the previous sidebar and add text
+        self.remove_unicode()
+        self._text.append(new_text)
+        self._text.append(TextBox.SIDEBAR)  # Add a new sidebar
+
+    def remove_unicode(self):
+        if self._text[-1] != self._prompt_symbol:
+            self._text.pop()
+
+    def clear_text(self):
+        self._text.clear()
+        self._text.append(self._prompt_symbol)
+
+    def get_text_str(self):
+        return ''.join(self._text)
+
+    def set_active(self, active):
+        if active and TextBox.SIDEBAR not in self._text:
+            self.insert_unicode(TextBox.SIDEBAR)
+            self.remove_unicode()
+        elif not active:
+            self.clear_text()
+        self._active = active
+
+    def is_active(self):
+        return self._active
+
+    def has_collided(self, mouse_pos):
+        return self._body_rect.collidepoint(mouse_pos)
+
+
+class Console(TextBox):
+    def __init__(self, coord, width, height, colour, prompt_symbol):
+        super().__init__(coord, width, height, colour, prompt_symbol)
+
+        self.__colour = (0, 0, 0)
