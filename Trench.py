@@ -22,7 +22,6 @@ class Trench(Actor, ABC):
 
         self._waypoint_graph = Graph(self._width, height, 20)
         self._build_waypoints()
-        self._waypoint_graph.debug()
 
         self._total_capacity = total_capacity
         self._country = country
@@ -67,6 +66,9 @@ class Trench(Actor, ABC):
             self._outline_colour = (255, 255, 255)
         else:
             self._outline_colour = (207, 185, 151)
+
+    def set_debug(self, debug):
+        self._waypoint_graph.set_debug(debug)
 
     def get_proximity(self):
         return [self._proximity_x, self._proximity_y]

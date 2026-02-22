@@ -112,3 +112,17 @@ class Group:
 
     def get_actors(self):
         return self.__actors
+
+
+class Timer:
+    def __init__(self):
+        self.__start_time = None
+
+    def start(self):
+        self.__start_time = pygame.time.get_ticks()
+
+    def __elapsed(self):
+        return pygame.time.get_ticks() - self.__start_time
+
+    def finished(self, length_secs):
+        return self.__elapsed() >= length_secs * 1000

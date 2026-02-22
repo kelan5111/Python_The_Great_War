@@ -26,16 +26,10 @@ class Node:
         return f'Node ID: {self.__ID}'
 
     def draw(self, screen):
-        DIAMETER = Node.RADIUS * 2
-        invisible_surf = pygame.surface.Surface((DIAMETER, DIAMETER), pygame.SRCALPHA)
-
         if self.__show:
             # self._debug_colour = pygame.Color((128, 255, 0))
 
             pygame.draw.circle(screen, self.__debug_colour, (self.__coord.get_coord()), Node.RADIUS)
-        else:
-            pygame.draw.circle(invisible_surf, (0, 0, 0), (Node.RADIUS, Node.RADIUS), Node.RADIUS)
-            screen.blit(invisible_surf, (self.__coord.get_x() - Node.RADIUS, self.__coord.get_y() - Node.RADIUS))
 
     def add_neighbour(self, node):
         self.__neighbours.append(node)
@@ -206,8 +200,8 @@ class Graph:
 
         return closest_waypoint
 
-    def debug(self):
-        self.__debug = True
+    def set_debug(self, debug=False):
+        self.__debug = debug
 
     def get_nodes(self):
         return self.__nodes

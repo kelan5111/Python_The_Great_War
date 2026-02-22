@@ -5,7 +5,7 @@ import json
 from waypoint import Graph
 from coordinate import Coordinate
 from npc import Soldier, Country, Weapon
-from game_mechanics import Group, Actor
+from game_mechanics import Group, Timer
 from game_gui import SelectBox, Button, InteractiveTab, Console
 from trench import FrontLineTrench, SupportTrench, Trench
 
@@ -27,8 +27,9 @@ class Game:
         self.__field_waypoints = Graph(self.__width, self.__height, 30)
 
         self.__select_box = SelectBox(player_country)
+        self.__timer = Timer()
         self.__interactive_tab = InteractiveTab(self.__width)
-        self.__debug_console = Console(Coordinate(0, self.__height - 40), self.__width, 40, (0, 0, 0), '> ')
+        self.__debug_console = None
 
     def run(self):
         clock = pygame.time.Clock()
@@ -80,6 +81,9 @@ class Game:
 
         trench_spawn = [support_line_one.get_proximity(), support_line_two.get_proximity()]
         starting_trenches = [support_line_one, support_line_two]
+
+        self.__debug_console = Console(Coordinate(0, self.__height - 40), self.__width, 200, (0, 0, 0),
+                '[CONSOLE]', self.__field_waypoints, [front_line_one, support_line_one, front_line_two, support_line_two])
 
         self.__group.add(front_line_one)
         self.__group.add(support_line_one)
@@ -155,6 +159,8 @@ class Game:
                 # If a text box is selected
                 if self.__debug_console.has_collided(mouse_pos):
                     self.__debug_console.set_active(True)
+                else:
+                    self.__debug_console.set_active(False)
 
             # Select Trench
             if event.button == 3:
@@ -172,14 +178,15 @@ class Game:
                 else:
                     self.__debug_console.set_show(True)
 
-            # Managing the consoles text input
             elif self.__debug_console.is_active():
+                # Managing the consoles text input
                 if event.key == pygame.K_RETURN:
-                    self.__debug_console.clear_text()
+                    self.__debug_console.execute_command()
+
                 elif event.key == pygame.K_BACKSPACE:
-                    self.__debug_console.remove_unicode()
+                    self.__debug_console.remove_char()
                 else:
-                    self.__debug_console.insert_unicode(event.unicode)
+                    self.__debug_console.insert_char(event.unicode)
 
     def __initialize_soldiers(self, num_soldiers, trench_coord_list, starting_trenches):
         for sides in range(0, 2):

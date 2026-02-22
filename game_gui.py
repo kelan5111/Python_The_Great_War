@@ -239,60 +239,74 @@ class InteractiveTab:
 class TextBox(UserInterface):
     SIDEBAR = '|'
 
-    def __init__(self, coord, width, height, colour, prompt_symbol):
+    def __init__(self, coord, width, height, colour, prompt_message):
         super().__init__(coord, width, height)
 
         self._body_rect = pygame.Rect(coord.get_coord(), (width, height))
-        self._text = ['> ']
+        self._text = []
         self._text_colour = (128, 255, 0)
         self._text_size = 20
-        self._text_font = pygame.font.SysFont("verdana", self._text_size).render(self.get_text_str(), True,
-                                                                                 self._text_colour)
-        self._text_rect = self._text_font.get_rect()
-        self._prompt_symbol = prompt_symbol
         self._colour = colour
         self._active = False
 
+        self._text_font = pygame.font.SysFont("verdana", self._text_size).render(self.get_text_str(True), True,
+                                                                                 self._text_colour)
+        self._prompt_text = f"{prompt_message} > "
+        self._prompt_font = pygame.font.SysFont("verdana", self._text_size).render(self._prompt_text, True,
+                                                                                   self._text_colour)
+        self._prompt_rect = self._prompt_font.get_rect()
+        self._text_rect = self._text_font.get_rect()
+        self._cursor_index = 0
+
     def draw(self, screen):
         if self._show:
+            spaces_after_prompt = self._prompt_font.get_width()
             # Drawing the body
             pygame.draw.rect(screen, self._colour, self._body_rect)
             # Drawing the text
-            self._text_rect = (self._body_rect.x, self._body_rect.y)
+            self._prompt_rect = (self._body_rect.x, self._body_rect.y)
+            self._text_rect = (
+                self._body_rect.x + spaces_after_prompt,
+                self._body_rect.y)  # The text needs to be placed after the prompt
+
+            screen.blit(self._prompt_font, self._prompt_rect)
             screen.blit(self._text_font, self._text_rect)
 
     def update(self):
         self._update_rect()
 
     def _update_rect(self):
-        self._body_rect = pygame.Rect(self._coord.get_coord(), (self._width, self._height))
-        self._text_font = pygame.font.SysFont("Andale Mono", self._text_size).render(self.get_text_str(), True,
+        self._text_font = pygame.font.SysFont("verdana", self._text_size).render(self.get_text_str(True), True,
                                                                                  self._text_colour)
+        self._prompt_font = pygame.font.SysFont("verdana", self._text_size).render(self._prompt_text, True,
+                                                                                   self._text_colour)
 
-    def insert_unicode(self, text):
-        new_text = str(text)
-        # Remove the previous sidebar and add text
-        self.remove_unicode()
-        self._text.append(new_text)
-        self._text.append(TextBox.SIDEBAR)  # Add a new sidebar
+    def insert_char(self, char):
+        self._text.insert(self._cursor_index, char)
+        self._cursor_index += 1
 
-    def remove_unicode(self):
-        if self._text[-1] != self._prompt_symbol:
+    def remove_char(self):
+        if len(self._text) > 0:
             self._text.pop()
 
-    def clear_text(self):
+    def _clear_text(self):
         self._text.clear()
-        self._text.append(self._prompt_symbol)
 
-    def get_text_str(self):
-        return ''.join(self._text)
+    def get_text_str(self, sidebar):
+        if not self._active or not sidebar:
+            return ''.join(self._text)
+
+        rendered = (
+                self._text[:self._cursor_index]
+                + ['|']
+                + self._text[self._cursor_index:]
+        )
+        return ''.join(rendered)
 
     def set_active(self, active):
-        if active and TextBox.SIDEBAR not in self._text:
-            self.insert_unicode(TextBox.SIDEBAR)
-            self.remove_unicode()
-        elif not active:
-            self.clear_text()
+        if active:
+            self._clear_text()
+
         self._active = active
 
     def is_active(self):
@@ -303,7 +317,21 @@ class TextBox(UserInterface):
 
 
 class Console(TextBox):
-    def __init__(self, coord, width, height, colour, prompt_symbol):
+    def __init__(self, coord, width, height, colour, prompt_symbol, field_waypoints, trench_list):
         super().__init__(coord, width, height, colour, prompt_symbol)
 
+        self.__commands = {
+            "debug_trenches = true": lambda: [t.set_debug(True) for t in trench_list],
+            "debug_field = true": lambda: field_waypoints.set_debug(True)
+        }
         self.__colour = (0, 0, 0)
+
+    def execute_command(self):
+        text = self.get_text_str(False)
+
+        if text is not None:
+            print(text)
+            if text in self.__commands:
+                self.__commands[text]()
+
+        self._clear_text()
