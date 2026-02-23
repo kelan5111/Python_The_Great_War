@@ -1,11 +1,10 @@
 import pygame
 import random
-import json
 
 from waypoint import Graph
-from coordinate import Coordinate
+from coordinate import Coordinate, Direction
 from npc import Soldier, Country, Weapon
-from game_mechanics import Group, Timer
+from game_mechanics import Group, Timer, Camera
 from game_gui import SelectBox, Button, InteractiveTab, Console
 from trench import FrontLineTrench, SupportTrench, Trench
 
@@ -18,7 +17,13 @@ class Game:
 
         self.__width = width
         self.__height = height
-        self.__screen = pygame.display.set_mode((self.__width, self.__height), pygame.FULLSCREEN)
+        self.__screen = pygame.display.set_mode((width, height), pygame.FULLSCREEN, vsync=1)
+        self.__dt = 0.0
+
+        self.__world_camera = Camera(self.__width, self.__height)
+
+        self.__width = width
+        self.__height = height
         self.__ground_colour = (48, 35, 9)
 
         self.__running = True
@@ -38,29 +43,36 @@ class Game:
         self.__initialize_waypoints()
 
         while self.__running:
-            mouse_pos = pygame.mouse.get_pos()
+            world_mouse_pos = pygame.mouse.get_pos()
+            screen_mouse_pos = self.__world_camera.translate_mouse_pos(world_mouse_pos)
+            self.__dt = clock.tick(60) / 1000.0
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.__running = False
 
-                self.__manage_input(event)
+                self.__manage_input(event, screen_mouse_pos)
 
-            self.__draw_world()
+            self.__manage_camera_input()
 
-            self.__group.draw()
-            self.__group.act(mouse_pos)
-
-            self.__interactive_tab.draw(self.__screen)
-            self.__interactive_tab.update()
-
-            self.__debug_console.draw(self.__screen)
-            self.__debug_console.update()
+            self.__draw()
+            self.__update(screen_mouse_pos)
 
             pygame.display.flip()
             clock.tick(60)
 
         pygame.quit()
+
+    def __draw(self):
+        self.__screen.fill(self.__ground_colour)
+        self.__group.draw(self.__world_camera)
+        self.__interactive_tab.draw(self.__screen, self.__world_camera)
+        self.__debug_console.draw(self.__screen, self.__world_camera)
+
+    def __update(self, mouse_pos):
+        self.__group.act(mouse_pos)
+        self.__interactive_tab.update()
+        self.__debug_console.update()
 
     def __initialize_objects(self):
         pygame.display.set_caption('The Great War')
@@ -83,7 +95,8 @@ class Game:
         starting_trenches = [support_line_one, support_line_two]
 
         self.__debug_console = Console(Coordinate(0, self.__height - 40), self.__width, 200, (0, 0, 0),
-                '[CONSOLE]', self.__field_waypoints, [front_line_one, support_line_one, front_line_two, support_line_two])
+                                       '[CONSOLE]', self.__field_waypoints,
+                                       [front_line_one, support_line_one, front_line_two, support_line_two])
 
         self.__group.add(front_line_one)
         self.__group.add(support_line_one)
@@ -96,17 +109,13 @@ class Game:
 
     def __initialize_waypoints(self):
         self.__field_waypoints.build()
-        self.__field_waypoints.draw(self.__screen)
+        self.__field_waypoints.draw(self.__screen, self.__world_camera)
 
-    def __draw_world(self):
-        self.__screen.fill(self.__ground_colour)
-
-    def __manage_input(self, event):
-        self.__manage_mouse_input(event)
+    def __manage_input(self, event, mouse_pos):
+        self.__manage_mouse_input(event, mouse_pos)
         self.__manage_key_input(event)
 
-    def __manage_mouse_input(self, event):
-        mouse_pos = pygame.mouse.get_pos()
+    def __manage_mouse_input(self, event, mouse_pos):
 
         if event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1:
@@ -187,6 +196,15 @@ class Game:
                     self.__debug_console.remove_char()
                 else:
                     self.__debug_console.insert_char(event.unicode)
+
+    def __manage_camera_input(self):
+        keys = pygame.key.get_pressed()
+
+        # Manage the movement of the camera
+        if keys[pygame.K_d]:
+            self.__world_camera.update(Direction.RIGHT, self.__dt)
+        elif keys[pygame.K_a]:
+            self.__world_camera.update(Direction.LEFT, self.__dt)
 
     def __initialize_soldiers(self, num_soldiers, trench_coord_list, starting_trenches):
         for sides in range(0, 2):

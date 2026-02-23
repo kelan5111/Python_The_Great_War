@@ -3,12 +3,14 @@ import json
 from abc import ABC, abstractmethod
 
 import npc
-from coordinate import Coordinate
+from coordinate import Coordinate, Direction
 
 
 class Actor(ABC):
     def __init__(self, coord, width, height):
-        self._coord = coord
+        self._world_coord = coord
+        self._screen_coord = Coordinate(0, 0)
+
         self._width = width
         self._height = height
         self._rect = pygame.Rect(coord.get_coord(), (width, height))
@@ -18,7 +20,7 @@ class Actor(ABC):
         self._hover = False
 
     @abstractmethod
-    def draw(self, screen):
+    def draw(self, screen, camera):
         pass
 
     @abstractmethod
@@ -33,7 +35,7 @@ class Actor(ABC):
             return self._rect.colliderect(soldier_rect)
 
     def get_coord(self):
-        return self._coord
+        return self._world_coord
 
     def get_width(self):
         return self._width
@@ -44,19 +46,16 @@ class Actor(ABC):
     def set_diameters(self, width, height):
         self._width = width
         self._height = height
-        self._rect = pygame.Rect(self._coord.get_coord(), (width, height))
+        self._rect = pygame.Rect(self._world_coord.get_coord(), (width, height))
 
     def get_x(self):
-        return self._coord.get_x()
+        return self._world_coord.get_x()
 
     def get_y(self):
-        return self._coord.get_y()
-
-    def set_coord(self, x, y):
-        self._coord = Coordinate(x, y)
+        return self._world_coord.get_y()
 
     def get_centre(self):
-        return self._coord.calc_center(self._width, self._height)
+        return self._world_coord.calc_center(self._width, self._height)
 
     def kill(self):
         self._alive = False
@@ -76,9 +75,6 @@ class Actor(ABC):
     def is_alive(self):
         return self._alive
 
-    def get_coord(self):
-        return self._coord
-
     def get_rect(self):
         return self._rect
 
@@ -88,9 +84,9 @@ class Group:
         self.__actors = []
         self.__screen = screen
 
-    def draw(self):
+    def draw(self, camera):
         for actor in self.__actors:
-            actor.draw(self.__screen)
+            actor.draw(self.__screen, camera)
 
     def act(self, mouse_pos):
         for actor in self.__actors:
@@ -112,6 +108,57 @@ class Group:
 
     def get_actors(self):
         return self.__actors
+
+
+class Camera:
+    def __init__(self, width, height):
+        self.__screen_width = width
+        self.__screen_height = height
+
+        self.__coord = Coordinate(0, 0)
+        self.__camera_speed = 150
+
+    def update(self, direction, dt):
+        new_x = self.__coord.get_x()
+        new_y = self.__coord.get_y()
+
+        new_x += direction.value[0] * (self.__camera_speed * dt)
+        new_y += direction.value[1] * (self.__camera_speed * dt)
+
+        self.__coord.set_x(new_x)
+        self.__coord.set_y(new_y)
+
+    def translate_rect(self, world_rect):
+        offset_x = self.__coord.get_x()
+        offset_y = self.__coord.get_y()
+
+        screen_rect = world_rect.copy()
+
+        screen_rect.x = world_rect.x - offset_x
+        screen_rect.y = world_rect.y - offset_y
+
+        return screen_rect
+
+    def translate_mouse_pos(self, world_mouse_pos):
+        offset_x = self.__coord.get_x()
+        offset_y = self.__coord.get_y()
+
+        screen_mouse_x = world_mouse_pos[0] + offset_x
+        screen_mouse_y = world_mouse_pos[1] + offset_y
+
+        return screen_mouse_x, screen_mouse_y
+
+    def translate_coord(self, coord):
+        offset_x = self.__coord.get_x()
+        offset_y = self.__coord.get_y()
+
+        screen_coord_x = coord[0] - offset_x
+        screen_coord_y = coord[1] - offset_y
+
+        return screen_coord_x, screen_coord_y
+
+    def get_coord(self):
+        return self.__coord
 
 
 class Timer:

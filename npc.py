@@ -1,6 +1,6 @@
 import pygame
 from enum import Enum
-from coordinate import Coordinate
+from coordinate import Coordinate, Direction
 from abc import ABC, abstractmethod
 from game_mechanics import Actor
 import random
@@ -16,7 +16,7 @@ class NPC(Actor):
         self._height = height
         self._country = country
         self._colour = country.value
-        self._rect = pygame.Rect(self._coord.get_coord(), (self._width, self._height))
+        self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
         self._ID = NPC.ID + 1
 
         self._speed = NPC.SPEED
@@ -32,15 +32,17 @@ class NPC(Actor):
         self._target_waypoint = None
 
         self._curr_waypoint = self._curr_waypoint_graph.find_nearest_waypoint(coord.get_coord())
-        self._coord = self._curr_waypoint.get_coord()
+        self._world_coord = self._curr_waypoint.get_coord()
 
-    def draw(self, screen):
-        pygame.draw.rect(screen, self._colour, self._rect)
+    def draw(self, screen, camera):
+        screen_rect = camera.translate_rect(self._rect)
+
+        pygame.draw.rect(screen, self._colour, screen_rect)
 
         if self._select:
             border_thickness = 2
             border_color = (255, 255, 255)
-            pygame.draw.rect(screen, border_color, self._rect, border_thickness)
+            pygame.draw.rect(screen, border_color, screen_rect, border_thickness)
 
     def act(self, mouse_pos):
         self._execute_idle_movement()
@@ -66,13 +68,13 @@ class NPC(Actor):
 
             target_coord = self._target_waypoint.get_coord()
 
-            if self._coord.get_coord() == target_coord.get_coord():
+            if self._world_coord.get_coord() == target_coord.get_coord():
                 self._curr_waypoint = self._target_waypoint
                 self._target_waypoint = None
                 return
 
             next_coord = self._calc_next_move(target_coord)
-            self._update(next_coord)
+            self._update_rect(next_coord)
 
     def set_path(self, target_coord=None, waypoint_id=None):
         if target_coord is not None:  # If we want to move to a certain coord (find the closest waypoint)
@@ -91,8 +93,8 @@ class NPC(Actor):
 
     def _calc_next_move(self, target_coord):
         step = 1
-        new_x = self._coord.get_x()
-        new_y = self._coord.get_y()
+        new_x = self._world_coord.get_x()
+        new_y = self._world_coord.get_y()
         target_x = target_coord.get_x()
         target_y = target_coord.get_y()
 
@@ -111,7 +113,7 @@ class NPC(Actor):
     def _is_enemy_near(self, enemy):
         if enemy.get_country() != self._country:
             enemy_coord = enemy.get_coord()
-            danger = self._coord.execute_radius_check(enemy_coord)
+            danger = self._world_coord.execute_radius_check(enemy_coord)
             if danger:
                 return enemy
 
@@ -123,15 +125,15 @@ class NPC(Actor):
         self._curr_waypoint_graph = self._next_waypoint_graph
         self._next_waypoint_graph = None
 
-        self.set_path(self._coord)
+        self.set_path(self._world_coord)
 
     @abstractmethod
     def _attack(self):
         pass
 
-    def _update(self, coord):
-        self._coord = coord
-        self._rect = pygame.Rect(self._coord.get_coord(), (self._width, self._height))
+    def _update_rect(self, coord):
+        self._world_coord = coord
+        self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
 
     def set_idle(self, idle):
         self._idle = idle
@@ -165,7 +167,7 @@ class Soldier(NPC):
         super().act(mouse_pos)
 
         self._detect_enemies()
-        self._weapon.lock_to_owner(self._coord)
+        self._weapon.lock_to_owner(self._world_coord)
 
     def _detect_enemies(self):
         for actor in self._actors:
@@ -179,10 +181,6 @@ class Soldier(NPC):
                 else:  # No enemy is in sight act normal
                     self._engaged = False
                     self._enemy_lock = None
-
-    def _draw_weapon(self):
-        if self.has_weapon():
-            self._weapon.show()
 
     def _attack(self):
         if self.has_weapon():
@@ -235,19 +233,21 @@ class Weapon(Actor):
 
         self._gun_type = gun_type
         self._ammo = Weapon.AMMO_CAPACITY
-        self._coord = coord
+        self._world_coord = coord
 
     def __str__(self):
         return f"Gun{self._gun_type}: capacity: {self._ammo}"
 
-    def draw(self, screen):
-        pygame.draw.rect(screen, self._colour, self._rect)
+    def draw(self, screen, camera):
+        screen_rect = camera.translate_rect(self._rect)
+
+        pygame.draw.rect(screen, self._colour, screen_rect)
 
     def act(self, mouse_pos):
-        self._rect = pygame.Rect(self._coord.get_coord(), (Weapon.WIDTH, Weapon.HEIGHT))
+        self._rect = pygame.Rect(self._world_coord.get_coord(), (Weapon.WIDTH, Weapon.HEIGHT))
 
     def lock_to_owner(self, coord):
-        self._coord = coord
+        self._world_coord = coord
 
     def shoot(self, target):
         target.remove_weapon()

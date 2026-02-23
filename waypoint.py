@@ -25,11 +25,11 @@ class Node:
     def __repr__(self):
         return f'Node ID: {self.__ID}'
 
-    def draw(self, screen):
-        if self.__show:
-            # self._debug_colour = pygame.Color((128, 255, 0))
+    def draw(self, screen, camera):
+        screen_coord = camera.translate_coord(self.__coord.get_coord())
 
-            pygame.draw.circle(screen, self.__debug_colour, (self.__coord.get_coord()), Node.RADIUS)
+        if self.__show:
+            pygame.draw.circle(screen, self.__debug_colour, screen_coord, Node.RADIUS)
 
     def add_neighbour(self, node):
         self.__neighbours.append(node)
@@ -122,10 +122,10 @@ class Graph:
                     if 0 <= poss_col < len(temp) and 0 <= poss_row < len(temp[poss_col]):
                         current_node.add_neighbour(temp[poss_col][poss_row])
 
-    def draw(self, screen):
+    def draw(self, screen, camera):
         if self.__debug:
             for node in self.__nodes:
-                node.draw(screen)
+                node.draw(screen, camera)
 
     def __breadth_first_search(self, start, waypoint_id):
         if start is None:  # If there isn't a start pos (start of game)

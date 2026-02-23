@@ -17,9 +17,11 @@ class SelectBox(Actor, ABC):
         self.__start_pos = None
         self.__pressed = False
 
-    def draw(self, screen):
+    def draw(self, screen, camera):
+        screen_rect = camera.translate_rect(self._rect)
+
         if self.__pressed:
-            pygame.draw.rect(screen, self.OUTLINE_COLOUR, self._rect, 3)
+            pygame.draw.rect(screen, self.OUTLINE_COLOUR, screen_rect, 3)
 
     def act(self, mouse_pos):
         self.execute(mouse_pos)
@@ -70,7 +72,9 @@ class SelectBox(Actor, ABC):
 
 class UserInterface(ABC):
     def __init__(self, coord=None, width=None, height=None, image=None):
-        self._coord = coord
+        self._world_coord = coord
+        self.__screen_coord = Coordinate(0, 0)
+
         self._width = width
         self._height = height
         self._image = image
@@ -80,7 +84,7 @@ class UserInterface(ABC):
         self._show = False
 
     @abstractmethod
-    def draw(self, screen):
+    def draw(self, screen, camera=None):
         pass
 
     @abstractmethod
@@ -112,10 +116,10 @@ class UserInterface(ABC):
         self._height = height
 
     def set_coord(self, x, y):
-        self._coord = Coordinate(x, y)
+        self._world_coord = Coordinate(x, y)
 
     def get_coord(self):
-        return self._coord
+        return self._world_coord
 
     def get_width(self):
         return self._width
@@ -138,7 +142,7 @@ class Button(UserInterface):
         self.__text_font = pygame.font.SysFont("verdana", self.__text_size).render(text, True, text_colour)
         self.__text_rect = self.__text_font.get_rect()
 
-    def draw(self, screen):
+    def draw(self, screen, camera=None):
         pygame.draw.rect(screen, self.__colour, self.__rect)
         # Outline rect
         pygame.draw.rect(screen, self.__outline_colour, self.__rect, 4)
@@ -151,7 +155,7 @@ class Button(UserInterface):
         self._update_rect()
 
     def _update_rect(self):
-        self.__rect = pygame.Rect(self._coord.get_coord(), (self._width, self._height))
+        self.__rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
         self.__text_font = pygame.font.SysFont("verdana", self.__text_size).render(self.__text, True,
                                                                                    self.__text_colour)
 
@@ -178,7 +182,7 @@ class Icon(UserInterface):
 
         self.__image = image_path
 
-    def draw(self, screen):
+    def draw(self, screen, camera=None):
         pass
 
     def update(self):
@@ -205,11 +209,11 @@ class InteractiveTab:
 
         self.__sections = []
 
-    def draw(self, screen):
+    def draw(self, screen, camera):
         pygame.draw.rect(screen, self.__colour, self.__body_rect)
         # Drawing the sections
         for ui in self.__sections:
-            ui.draw(screen)
+            ui.draw(screen, camera)
 
     def update(self):
         for ui in self.__sections:
@@ -258,7 +262,7 @@ class TextBox(UserInterface):
         self._text_rect = self._text_font.get_rect()
         self._cursor_index = 0
 
-    def draw(self, screen):
+    def draw(self, screen, camera=None):
         if self._show:
             spaces_after_prompt = self._prompt_font.get_width()
             # Drawing the body
@@ -322,7 +326,8 @@ class Console(TextBox):
 
         self.__commands = {
             "debug_trenches = true": lambda: [t.set_debug(True) for t in trench_list],
-            "debug_field = true": lambda: field_waypoints.set_debug(True)
+            "debug_field = true": lambda: field_waypoints.set_debug(True),
+            "debug_trenches = false": lambda: [t.set_debug(False) for t in trench_list]
         }
         self.__colour = (0, 0, 0)
 

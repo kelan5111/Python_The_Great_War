@@ -29,14 +29,16 @@ class Trench(Actor, ABC):
 
         self._actors = actors
 
-    def draw(self, screen):
-        # Draw the outline of the trench
-        pygame.draw.line(screen, self._outline_colour, self._rect.bottomleft, self._rect.topleft, 5)
-        pygame.draw.line(screen, self._outline_colour, self._rect.bottomright, self._rect.topright, 5)
-        # Drawing the trench's ground
-        pygame.draw.rect(screen, self._ground_colour, self._rect)
+    def draw(self, screen, camera):
+        screen_rect = camera.translate_rect(self._rect)
 
-        self._waypoint_graph.draw(screen)
+        # Draw the outline of the trench
+        pygame.draw.line(screen, self._outline_colour, screen_rect.bottomleft, screen_rect.topleft, 5)
+        pygame.draw.line(screen, self._outline_colour, screen_rect.bottomright, screen_rect.topright, 5)
+        # Drawing the trench's ground
+        pygame.draw.rect(screen, self._ground_colour, screen_rect)
+
+        self._waypoint_graph.draw(screen, camera)
 
     def act(self, mouse_pos):
         self._update_curr_soldiers()

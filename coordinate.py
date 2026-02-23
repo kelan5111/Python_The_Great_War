@@ -1,4 +1,5 @@
 import math
+from enum import Enum
 
 
 class Coordinate:
@@ -35,8 +36,14 @@ class Coordinate:
     def get_x(self):
         return self.__x
 
+    def set_x(self, x):
+        self.__x = x
+
     def get_y(self):
         return self.__y
+
+    def set_y(self, y):
+        self.__y = y
 
     def calc_center(self, width, height):
         return self.__x + width / 2, self.__y + height / 2
@@ -47,3 +54,10 @@ class Coordinate:
     def set_coord(self, x, y):
         self.__x = x
         self.__y = y
+
+
+class Direction(Enum):
+    UP = (0, 1)
+    DOWN = (0, -1)
+    LEFT = (-1, 0)
+    RIGHT = (1, 0)
