@@ -3,7 +3,7 @@ import random
 
 from waypoint import Graph
 from coordinate import Coordinate, Direction
-from npc import Soldier, Country, Weapon
+from npc import Soldier, Country, Gun
 from game_mechanics import Group, Timer, Camera
 from game_gui import SelectBox, Button, InteractiveTab, Console
 from trench import FrontLineTrench, SupportTrench, Trench
@@ -53,10 +53,9 @@ class Game:
 
                 self.__manage_input(event, screen_mouse_pos)
 
-            self.__manage_camera_input()
-
-            self.__draw()
             self.__update(screen_mouse_pos)
+            self.__manage_camera_input()
+            self.__draw()
 
             pygame.display.flip()
             clock.tick(60)
@@ -216,10 +215,10 @@ class Game:
                 rand_y = random.randint(starting_trench_coord[1][0], starting_trench_coord[1][1])
 
                 trench_waypoint_graph = starting_trench.get_waypoint_graph()
-                weapon = Weapon("none")
+                gun = Gun(Coordinate(500, 500), 10, 10, "none", 10)
 
                 soldier = Soldier(Coordinate(rand_x, rand_y), 20, 20, trench_waypoint_graph, self.__countries[sides],
-                                  self.__group.get_actors(), weapon)
+                                  self.__group.get_actors(), gun)
 
                 self.__group.add(soldier)
-                self.__group.add(weapon)
+                self.__group.add(gun)
