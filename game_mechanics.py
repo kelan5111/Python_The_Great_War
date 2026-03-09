@@ -7,7 +7,7 @@ from coordinate import Coordinate, Direction
 
 
 class Actor(ABC):
-    def __init__(self, coord, width, height):
+    def __init__(self, coord, width, height, group):
         self._world_coord = coord
         self._screen_coord = Coordinate(0, 0)
 
@@ -18,6 +18,9 @@ class Actor(ABC):
         self._alive = True
         self._select = False
         self._hover = False
+
+        if group is not None:
+            group.add(self)
 
     @abstractmethod
     def draw(self, screen, camera):

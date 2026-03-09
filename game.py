@@ -31,7 +31,7 @@ class Game:
         self.__group = Group(self.__screen)
         self.__field_waypoints = Graph(self.__width + (self.__width // 2), self.__height, 30)
 
-        self.__select_box = SelectBox(player_country)
+        self.__select_box = SelectBox(player_country, 0, 0, self.__group)
         self.__timer = Timer()
         self.__interactive_tab = InteractiveTab(self.__width)
         self.__debug_console = None
@@ -77,19 +77,17 @@ class Game:
     def __initialize_objects(self):
         pygame.display.set_caption('The Great War')
 
-        actors = self.__group.get_actors()
-
         button_one = Button((255, 0, 0), (255, 255, 255), "Button One", 0, (0, 0, 0))
         self.__interactive_tab.add_icon(button_one)
 
         front_line_one = FrontLineTrench(Coordinate(150, 0), 50, self.__height, 10, self.__player, self.__ground_colour,
-                                         actors)
+                                         self.__group)
         support_line_one = SupportTrench(Coordinate(50, 0), 50, self.__height, 50, self.__player, self.__ground_colour,
-                                         actors)
+                                         self.__group)
         front_line_two = FrontLineTrench(Coordinate(self.__width - 200, 0), 50, self.__height, 10, Country.GERMANY,
-                                         self.__ground_colour, actors)
+                                         self.__ground_colour, self.__group)
         support_line_two = SupportTrench(Coordinate(self.__width - 100, 0), 50, self.__height, 50, Country.GERMANY,
-                                         self.__ground_colour, actors)
+                                         self.__ground_colour, self.__group)
 
         support_line_trenches_proximity = [support_line_one.get_proximity(), support_line_two.get_proximity()]
         front_line_trenches_proximity = [support_line_one, support_line_two]
@@ -98,15 +96,8 @@ class Game:
                                        '[CONSOLE]', self.__field_waypoints,
                                        [front_line_one, support_line_one, front_line_two, support_line_two])
 
-        self.__group.add(front_line_one)
-        self.__group.add(support_line_one)
-        self.__group.add(front_line_two)
-        self.__group.add(support_line_two)
-
         self.__initialize_soldiers(10, support_line_trenches_proximity, front_line_trenches_proximity)
         self.__initialize_artillery(support_line_trenches_proximity)
-
-        self.__group.add(self.__select_box)
 
     def __initialize_waypoints(self):
         self.__field_waypoints.build()
@@ -217,15 +208,17 @@ class Game:
                 rand_y = random.randint(starting_trench_coord[1][0], starting_trench_coord[1][1])
 
                 trench_waypoint_graph = starting_trench.get_waypoint_graph()
-                bolt_action_rifle = Gun(Coordinate(500, 500), 10, 10, "none", 10, 10,  10)
 
                 soldier = Soldier(Coordinate(rand_x, rand_y), 20, 20, trench_waypoint_graph, self.__countries[sides],
-                                  self.__group.get_actors(), bolt_action_rifle)
+                                  self.__group)
 
-                self.__group.add(soldier)
-                self.__group.add(bolt_action_rifle)
+                bolt_action_rifle = Gun(Coordinate(500, 500), 10, 10, "none",
+                                        10, 10, 10,
+                                        self.__group)
 
-    def __initialize_artillery(self, support_line_trenches_coord):
+                soldier.set_weapon(bolt_action_rifle)
+
+    def __initialize_artillery(self, trenches_coords):
         artillery_height = 20
         total_artillery = self.__height // artillery_height
         trench_distance = 400
@@ -236,7 +229,8 @@ class Game:
         for side in range(0, 2):
             new_x = 0
             artillery_space = 0
-            support_trench_coord = support_line_trenches_coord[side][0]
+            side_trench_coord = trenches_coords[side]
+            support_trench_coord = side_trench_coord[0]
 
             if side == 0:   # Left side minus x coord
                 new_x = support_trench_coord[0] - trench_distance
@@ -244,8 +238,8 @@ class Game:
                 new_x = support_trench_coord[0] + trench_distance
 
             for artillery_count in range(total_artillery):
-                artillery = Artillery(Coordinate(new_x, new_y + artillery_space), 50, 20, 10, 10, 100)
+                artillery = Artillery(Coordinate(new_x, new_y + artillery_space), 50, 20,
+                                      10, 10, 100,
+                                      side_trench_coord, self.__group)
 
                 artillery_space += (self.__height // artillery_height)
-
-                self.__group.add(artillery)

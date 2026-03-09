@@ -10,8 +10,8 @@ class NPC(Actor):
     ID = 0
     SPEED = 0.5
 
-    def __init__(self, coord, width, height, waypoint_graph, country, actors):
-        super().__init__(coord, width, height)
+    def __init__(self, coord, width, height, waypoint_graph, country, group):
+        super().__init__(coord, width, height, group)
         self._width = width
         self._height = height
         self._country = country
@@ -20,7 +20,7 @@ class NPC(Actor):
         self._ID = NPC.ID + 1
 
         self._speed = NPC.SPEED
-        self._actors = actors
+        self._actors = group.get_actors()
 
         self._engaged = False
         self._moving = False
@@ -152,8 +152,8 @@ class NPC(Actor):
 
 
 class Soldier(NPC):
-    def __init__(self, coord, width, height, curr_waypoint_graph, country, actors, weapon):
-        super().__init__(coord, width, height, curr_waypoint_graph, country, actors)
+    def __init__(self, coord, width, height, curr_waypoint_graph, country, group, weapon=None):
+        super().__init__(coord, width, height, curr_waypoint_graph, country, group)
 
         self._country = country
         self._weapon = weapon
@@ -167,7 +167,6 @@ class Soldier(NPC):
         super().act(mouse_pos)
 
         self._detect_enemies()
-        self._weapon.lock_to_owner(self._world_coord)
 
     def kill(self):
         self._alive = False
@@ -208,10 +207,11 @@ class Soldier(NPC):
         return False
 
     def set_weapon(self, weapon):
+        weapon.set_owner(self)
         self._weapon = weapon
 
     def _remove_weapon(self):
-        self._weapon.kill()
+        self._weapon.remove_owner()
 
     def has_weapon(self):
         return self._weapon is not None
@@ -224,8 +224,8 @@ class Soldier(NPC):
 
 
 class Weapon(Actor):
-    def __init__(self, coord, width, height, shot_range, shot_speed, ammo_capacity):
-        super().__init__(coord, width, height)
+    def __init__(self, coord, width, height, shot_range, shot_speed, ammo_capacity, group, owner=None):
+        super().__init__(coord, width, height, group)
         self._colour = pygame.Color(0, 0, 0)
         self._world_coord = coord
 
@@ -234,16 +234,18 @@ class Weapon(Actor):
         self._shot_chance = 0
         self._ammo_capacity = ammo_capacity
 
+        self._owner = owner
+
     def __str__(self):
         pass
 
     def draw(self, screen, camera):
-        if self._alive:
-            screen_rect = camera.translate_rect(self._rect)
-            pygame.draw.rect(screen, self._colour, screen_rect)
+        screen_rect = camera.translate_rect(self._rect)
+        pygame.draw.rect(screen, self._colour, screen_rect)
 
     def act(self, mouse_pos):
         self._update_rect()
+        self._lock_to_owner()
 
     @abstractmethod
     def _shoot(self, target):
@@ -256,34 +258,51 @@ class Weapon(Actor):
     def _update_rect(self):
         self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
 
-    def lock_to_owner(self, owner_coord):
-        new_x = owner_coord.get_x()
-        new_y = owner_coord.get_y()
+    def _lock_to_owner(self):
+        if self._owner is not None:
+            new_x = self._owner.get_x()
+            new_y = self._owner.get_y()
 
-        self._world_coord = Coordinate(new_x, new_y)
-        # need a weapon chance of killing
+            self._world_coord = Coordinate(new_x, new_y)
+
+    def set_owner(self, owner):
+        self._owner = owner
+
+    def remove_owner(self):
+        self._owner = None
+
+    def get_owner(self):
+        return self._owner
 
 
 class Artillery(Weapon):
-    def __init__(self, coord, width, height, shot_range, shot_speed, ammo_capacity):
-        super().__init__(coord, width, height, shot_range, shot_speed, ammo_capacity)
+    def __init__(self, coord, width, height, shot_range, shot_speed, ammo_capacity, trench_coord_list, group):
+        super().__init__(coord, width, height, shot_range, shot_speed, ammo_capacity, group)
 
         self._shot_radius = 5  # I need a radius to determine what area gets affected by the impact
         self._shot_speed = 0
+        self._shell_supply = ammo_capacity
+
+        self._trench_coords = trench_coord_list
 
     def act(self, mouse_pos):
-        self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
+        self._update_rect()
 
     def _shoot(self, target):
+        # Condition 1: when full scale attack
         pass
 
     def _reload(self):
         pass
 
+    def __calc_rand_shot(self):
+        # early stages: shots were poor (mapping area) later stages: precise
+        pass
+
 
 class Gun(Weapon):
-    def __init__(self, coord, width, height, gun_type, shot_range, shot_speed, ammo_capacity):
-        super().__init__(coord, width, height, shot_range, shot_speed, ammo_capacity)
+    def __init__(self, coord, width, height, gun_type, shot_range, shot_speed, ammo_capacity, group):
+        super().__init__(coord, width, height, shot_range, shot_speed, ammo_capacity, group)
 
         self._gun_type = gun_type
         self._magazine_capacity = 10

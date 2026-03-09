@@ -10,8 +10,8 @@ from game_mechanics import Actor
 class SelectBox(Actor, ABC):
     OUTLINE_COLOUR = (0, 0, 0)
 
-    def __init__(self, country):
-        super().__init__(coord=Coordinate(0, 0), width=0, height=0)
+    def __init__(self, country, width, height, group):
+        super().__init__(Coordinate(0, 0), width, height, group)
         self._rect = pygame.Rect(0, 0, 0, 0)
         self.__country = country
         self.__start_pos = None

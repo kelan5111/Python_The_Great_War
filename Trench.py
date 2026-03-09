@@ -8,8 +8,8 @@ from waypoint import Graph
 
 
 class Trench(Actor, ABC):
-    def __init__(self, coord, width, height, total_capacity, country, ground_colour, actors):
-        super().__init__(coord, width, height)
+    def __init__(self, coord, width, height, total_capacity, country, ground_colour, group):
+        super().__init__(coord, width, height, group)
         self._coord = coord
         self._width = width
         self._height = height
@@ -27,7 +27,7 @@ class Trench(Actor, ABC):
         self._country = country
         self._curr_soldiers = []
 
-        self._actors = actors
+        self._actors = group.get_actors()
 
     def draw(self, screen, camera):
         screen_rect = camera.translate_rect(self._rect)
@@ -83,13 +83,13 @@ class Trench(Actor, ABC):
 
 
 class FrontLineTrench(Trench, ABC):
-    def __init__(self, coord, width, height, total_capacity, country, ground_colour, actors):
-        super().__init__(coord, width, height, total_capacity, country, ground_colour, actors)
+    def __init__(self, coord, width, height, total_capacity, country, ground_colour, group):
+        super().__init__(coord, width, height, total_capacity, country, ground_colour, group)
 
 
 class SupportTrench(Trench, ABC):
-    def __init__(self, coord, width, height, total_capacity,country, ground_colour, actors):
-        super().__init__(coord, width, height, total_capacity, country, ground_colour, actors)
+    def __init__(self, coord, width, height, total_capacity,country, ground_colour, group):
+        super().__init__(coord, width, height, total_capacity, country, ground_colour, group)
 
         def recruit():
             pass
