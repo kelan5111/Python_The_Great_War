@@ -25,11 +25,12 @@ class Game:
         self.__width = width
         self.__height = height
         self.__ground_colour = (48, 35, 9)
-
         self.__running = True
 
         self.__group = Group(self.__screen)
+
         self.__field_waypoints = Graph(self.__width + (self.__width // 2), self.__height, 30)
+        self.__field_waypoints.build()
 
         self.__select_box = SelectBox(player_country, 0, 0, self.__group)
         self.__timer = Timer()
@@ -219,27 +220,31 @@ class Game:
                 soldier.set_weapon(bolt_action_rifle)
 
     def __initialize_artillery(self, trenches_coords):
-        artillery_height = 20
-        total_artillery = self.__height // artillery_height
+        spaced = 70
+        height = 40
+        total_artillery = self.__height // spaced
+        print(total_artillery)
         trench_distance = 400
 
-        new_x = 0
-        new_y = 0
+        curr_y = 0
 
         for side in range(0, 2):
             new_x = 0
-            artillery_space = 0
+            new_y = 0
+            country = None
             side_trench_coord = trenches_coords[side]
             support_trench_coord = side_trench_coord[0]
 
             if side == 0:   # Left side minus x coord
                 new_x = support_trench_coord[0] - trench_distance
+                country = Country.GERMANY
             elif side == 1:   # Right side add x coord
                 new_x = support_trench_coord[0] + trench_distance
+                country = Country.BRITAIN
 
             for artillery_count in range(total_artillery):
-                artillery = Artillery(Coordinate(new_x, new_y + artillery_space), 50, 20,
-                                      10, 10, 100,
-                                      side_trench_coord, self.__group)
+                new_y += (curr_y + spaced)
 
-                artillery_space += (self.__height // artillery_height)
+                artillery = Artillery(Coordinate(new_x, new_y), 50, 20,
+                                      10, 10, 100,
+                                      side_trench_coord, self.__group, self.__field_waypoints, country)

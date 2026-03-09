@@ -9,13 +9,15 @@ import random
 class NPC(Actor):
     ID = 0
     SPEED = 0.5
+    SIZE = 20
 
     def __init__(self, coord, width, height, waypoint_graph, country, group):
         super().__init__(coord, width, height, group)
-        self._width = width
-        self._height = height
+        self._width = NPC.SIZE
+        self._height = NPC.SIZE
         self._country = country
         self._colour = country.value
+        self._regiment_colour = (0, 0, 0)
         self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
         self._ID = NPC.ID + 1
 
@@ -31,18 +33,21 @@ class NPC(Actor):
         self._next_waypoint_graph = None
         self._target_waypoint = None
 
-        self._curr_waypoint = self._curr_waypoint_graph.find_nearest_waypoint(coord.get_coord())
-        self._world_coord = self._curr_waypoint.get_coord()
+        if coord is not None:
+            self._curr_waypoint = self._curr_waypoint_graph.find_nearest_waypoint(coord.get_coord())
+            self._world_coord = self._curr_waypoint.get_coord()
 
     def draw(self, screen, camera):
         screen_rect = camera.translate_rect(self._rect)
-
-        pygame.draw.rect(screen, self._colour, screen_rect)
+        border_thickness = 2
 
         if self._select:
-            border_thickness = 2
-            border_color = (255, 255, 255)
-            pygame.draw.rect(screen, border_color, screen_rect, border_thickness)
+            self._regiment_colour = (255, 255, 255)
+        else:
+            self._regiment_colour = (0, 0, 0)
+
+        pygame.draw.rect(screen, self._colour, screen_rect)
+        pygame.draw.rect(screen, self._regiment_colour, screen_rect, border_thickness)
 
     def act(self, mouse_pos):
         self._execute_idle_movement()
@@ -166,7 +171,8 @@ class Soldier(NPC):
     def act(self, mouse_pos):
         super().act(mouse_pos)
 
-        self._detect_enemies()
+        if not self._idle:
+            self._detect_enemies()
 
     def kill(self):
         self._alive = False
@@ -175,15 +181,16 @@ class Soldier(NPC):
     def _detect_enemies(self):
         for actor in self._actors:
             if isinstance(actor, Soldier):
-                enemy = self._is_enemy_near(actor)
+                if actor.get_country() != self._country:
+                    enemy = self._is_enemy_near(actor)
 
-                if enemy is not None:  # Enemy is near, stop moving and engage
-                    self._engaged = True
-                    self._enemy_lock = enemy
-                    self._attack()
-                else:  # No enemy is in sight act normal
-                    self._engaged = False
-                    self._enemy_lock = None
+                    if enemy is not None:  # Enemy is near, stop moving and engage
+                        self._engaged = True
+                        self._enemy_lock = enemy
+                        self._attack()
+                    else:  # No enemy is in sight act normal
+                        self._engaged = False
+                        self._enemy_lock = None
 
     def _attack(self):
         if self.has_weapon():
@@ -223,8 +230,25 @@ class Soldier(NPC):
         return self._shot_chance
 
 
+class SpecialForces(Soldier):
+    def __init__(self, coord, width, height, curr_waypoint_graph, country, group):
+        super().__init__(coord, width, height, curr_waypoint_graph, country, group)
+
+        self._skill_lvl = 0
+
+    def get_skill_lvl(self):
+        return self._skill_lvl
+
+
+class Gunners(SpecialForces):
+    def __init__(self, coord, width, height, curr_waypoint_graph, country, group):
+        super().__init__(coord, width, height, curr_waypoint_graph, country, group)
+
+        self._regiment_colour = (0, 0, 153)
+
+
 class Weapon(Actor):
-    def __init__(self, coord, width, height, shot_range, shot_speed, ammo_capacity, group, owner=None):
+    def __init__(self, coord, width, height, shot_range, shot_speed, ammo_capacity, group):
         super().__init__(coord, width, height, group)
         self._colour = pygame.Color(0, 0, 0)
         self._world_coord = coord
@@ -234,7 +258,8 @@ class Weapon(Actor):
         self._shot_chance = 0
         self._ammo_capacity = ammo_capacity
 
-        self._owner = owner
+        self._owner = None
+        self._country = None
 
     def __str__(self):
         pass
@@ -248,11 +273,11 @@ class Weapon(Actor):
         self._lock_to_owner()
 
     @abstractmethod
-    def _shoot(self, target):
+    def shoot(self, target):
         pass
 
     @abstractmethod
-    def _reload(self):
+    def reload(self):
         pass
 
     def _update_rect(self):
@@ -267,6 +292,7 @@ class Weapon(Actor):
 
     def set_owner(self, owner):
         self._owner = owner
+        self._country = owner.get_country()
 
     def remove_owner(self):
         self._owner = None
@@ -276,28 +302,54 @@ class Weapon(Actor):
 
 
 class Artillery(Weapon):
-    def __init__(self, coord, width, height, shot_range, shot_speed, ammo_capacity, trench_coord_list, group):
+    def __init__(self, coord, width, height, shot_range, shot_speed, ammo_capacity, trench_coord_list, group, field_waypoint_graph, country=None):
         super().__init__(coord, width, height, shot_range, shot_speed, ammo_capacity, group)
 
         self._shot_radius = 5  # I need a radius to determine what area gets affected by the impact
         self._shot_speed = 0
         self._shell_supply = ammo_capacity
+        self._field_waypoint_graph = field_waypoint_graph
+        self._country = country
 
-        self._trench_coords = trench_coord_list
+        self._ally_trench_coords = trench_coord_list
+        self._max_gunner = 6
+        self._gunners = []
+
+        self.fill_gunners(group)    # spawn gunners at start
 
     def act(self, mouse_pos):
         self._update_rect()
+        self._calc_rand_shot()
 
-    def _shoot(self, target):
+    def shoot(self, target):
         # Condition 1: when full scale attack
+        if len(self._gunners) > 0:
+            pass
+
+    def reload(self):
         pass
 
-    def _reload(self):
-        pass
-
-    def __calc_rand_shot(self):
+    def _calc_rand_shot(self):
         # early stages: shots were poor (mapping area) later stages: precise
         pass
+
+    def add_soldier(self, soldier):
+        if isinstance(soldier, Gunners):    # soldiers must be Gunners (special force)
+            self._gunners.append(soldier)
+
+    def fill_gunners(self, group):
+        for gunner in range(self._max_gunner):
+            starting_pos = self._world_coord
+            gunner = Gunners(starting_pos, 0, 0, self._field_waypoint_graph, self._country, group)
+            gunner.set_idle(False)
+
+            self.add_soldier(gunner)
+
+    def remove_soldier(self, soldier):
+        self._gunners.remove(soldier)
+
+    def get_soldiers(self):
+        return self._max_gunner
 
 
 class Gun(Weapon):
@@ -307,13 +359,13 @@ class Gun(Weapon):
         self._gun_type = gun_type
         self._magazine_capacity = 10
 
-    def _shoot(self, target):
+    def shoot(self, target):
         if self._magazine_capacity != 0 or self._ammo_capacity != 0:
             target.kill()
 
             self._magazine_capacity -= 1
 
-    def _reload(self):
+    def reload(self):
         pass
 
 
