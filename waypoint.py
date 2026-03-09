@@ -27,9 +27,7 @@ class Node:
 
     def draw(self, screen, camera):
         screen_coord = camera.translate_coord(self.__coord.get_coord())
-
-        if self.__show:
-            pygame.draw.circle(screen, self.__debug_colour, screen_coord, Node.RADIUS)
+        pygame.draw.circle(screen, self.__debug_colour, screen_coord, Node.RADIUS)
 
     def add_neighbour(self, node):
         self.__neighbours.append(node)

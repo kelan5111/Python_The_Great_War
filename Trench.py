@@ -17,8 +17,8 @@ class Trench(Actor, ABC):
         self._outline_colour = (207, 185, 151)
         self._ground_colour = ground_colour
         self._boarder_rect = pygame.Rect(coord.get_coord(), (self._width, height))
-        self._proximity_x = self._rect.topleft[0] - 10, self._rect.topright[0]
-        self._proximity_y = self._rect.topleft[1], self._rect.bottomleft[1]
+        self._line_x = self._rect.topleft[0] - 10, self._rect.topright[0]
+        self._line_y = self._rect.topleft[1], self._rect.bottomleft[1]
 
         self._waypoint_graph = Graph(self._width, height, 20)
         self._build_waypoints()
@@ -53,7 +53,7 @@ class Trench(Actor, ABC):
         self._boarder_rect = pygame.Rect(self._coord.get_coord(), (self._width, self._height))
 
     def _build_waypoints(self):
-        self._waypoint_graph.build(self._proximity_x, self._proximity_y)
+        self._waypoint_graph.build(self._line_x, self._line_y)
 
     def _update_curr_soldiers(self):
         for actor in self._actors:
@@ -73,7 +73,7 @@ class Trench(Actor, ABC):
         self._waypoint_graph.set_debug(debug)
 
     def get_proximity(self):
-        return [self._proximity_x, self._proximity_y]
+        return [self._line_x, self._line_y]
 
     def get_waypoint_graph(self):
         return self._waypoint_graph

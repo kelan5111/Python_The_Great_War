@@ -327,7 +327,8 @@ class Console(TextBox):
         self.__commands = {
             "debug_trenches = true": lambda: [t.set_debug(True) for t in trench_list],
             "debug_field = true": lambda: field_waypoints.set_debug(True),
-            "debug_trenches = false": lambda: [t.set_debug(False) for t in trench_list]
+            "debug_trenches = false": lambda: [t.set_debug(False) for t in trench_list],
+            "debug_field = false": lambda: field_waypoints.set_debug(False)
         }
         self.__colour = (0, 0, 0)
 

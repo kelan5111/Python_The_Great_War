@@ -116,7 +116,7 @@ class Camera:
         self.__screen_height = height
 
         self.__coord = Coordinate(0, 0)
-        self.__camera_speed = 150
+        self.__camera_speed = 200
 
     def update(self, direction, dt):
         new_x = self.__coord.get_x()
