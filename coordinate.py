@@ -6,18 +6,18 @@ class Coordinate:
     RADIUS = 150
 
     def __init__(self, x, y):
-        self.__x = x
-        self.__y = y
-        self.__coord = (x, y)
+        self._x = x
+        self._y = y
+        self._coord = (x, y)
 
     def __repr__(self):
-        return f'Coordinate: ({self.__x}, {self.__y})'
+        return f'Coordinate: ({self._x}, {self._y})'
 
     def execute_radius_check(self, other):
         other_x = other.get_x()
         other_y = other.get_y()
 
-        distance_squared = (self.__x - other_x) ** 2 + (self.__y - other_y) ** 2
+        distance_squared = (self._x - other_x) ** 2 + (self._y - other_y) ** 2
 
         return math.sqrt(distance_squared) < Coordinate.RADIUS
 
@@ -29,31 +29,31 @@ class Coordinate:
             other_x = other.get_x()
             other_y = other.get_y()
 
-        distance = math.sqrt(((other_x - self.__x) ** 2) + ((other_y - self.__y) ** 2))
+        distance = math.sqrt(((other_x - self._x) ** 2) + ((other_y - self._y) ** 2))
 
         return distance
 
     def get_x(self):
-        return self.__x
+        return self._x
 
     def set_x(self, x):
-        self.__x = x
+        self._x = x
 
     def get_y(self):
-        return self.__y
+        return self._y
 
     def set_y(self, y):
-        self.__y = y
+        self._y = y
 
     def calc_center(self, width, height):
-        return self.__x + width / 2, self.__y + height / 2
+        return self._x + width / 2, self._y + height / 2
 
     def get_coord(self):
-        return self.__coord
+        return self._coord
 
     def set_coord(self, x, y):
-        self.__x = x
-        self.__y = y
+        self._x = x
+        self._y = y
 
 
 class Direction(Enum):

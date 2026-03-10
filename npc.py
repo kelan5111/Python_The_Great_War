@@ -2,7 +2,7 @@ import pygame
 from enum import Enum
 from coordinate import Coordinate, Direction
 from abc import ABC, abstractmethod
-from game_mechanics import Actor
+from game_mechanics import Actor, Timer
 import random
 
 
@@ -16,7 +16,8 @@ class NPC(Actor):
         self._width = NPC.SIZE
         self._height = NPC.SIZE
         self._country = country
-        self._colour = country.value
+        self._colour = country.value[0]
+        self._border_colour = (0, 0, 0)
         self._regiment_colour = (0, 0, 0)
         self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
         self._ID = NPC.ID + 1
@@ -42,12 +43,12 @@ class NPC(Actor):
         border_thickness = 2
 
         if self._select:
-            self._regiment_colour = (255, 255, 255)
+            self._border_colour = (255, 255, 255)
         else:
-            self._regiment_colour = (0, 0, 0)
+            self._border_colour = self._regiment_colour
 
         pygame.draw.rect(screen, self._colour, screen_rect)
-        pygame.draw.rect(screen, self._regiment_colour, screen_rect, border_thickness)
+        pygame.draw.rect(screen, self._border_colour, screen_rect, border_thickness)
 
     def act(self, mouse_pos):
         self._execute_idle_movement()
@@ -161,6 +162,7 @@ class Soldier(NPC):
         super().__init__(coord, width, height, curr_waypoint_graph, country, group)
 
         self._country = country
+        self._regiment_colour = self._colour
         self._weapon = weapon
         self._enemy_lock = None
         self._shot_chance = 100
@@ -268,16 +270,16 @@ class Weapon(Actor):
         screen_rect = camera.translate_rect(self._rect)
         pygame.draw.rect(screen, self._colour, screen_rect)
 
-    def act(self, mouse_pos):
+    def act(self, *args):
         self._update_rect()
         self._lock_to_owner()
 
     @abstractmethod
-    def shoot(self, target):
+    def shoot(self, *args):
         pass
 
     @abstractmethod
-    def reload(self):
+    def reload(self, *args):
         pass
 
     def _update_rect(self):
@@ -302,39 +304,56 @@ class Weapon(Actor):
 
 
 class Artillery(Weapon):
-    def __init__(self, coord, width, height, shot_range, shot_speed, ammo_capacity, trench_coord_list, group, field_waypoint_graph, country=None):
+    def __init__(self, coord, width, height, shot_range, shot_speed, ammo_capacity, trench_coord_list, group,
+                 field_waypoint_graph, country=None):
         super().__init__(coord, width, height, shot_range, shot_speed, ammo_capacity, group)
 
-        self._shot_radius = 5  # I need a radius to determine what area gets affected by the impact
+        self._shot_radius = 5
         self._shot_speed = 0
+        self._shot_x = 0
+        self._shot_y = 0
+
         self._shell_supply = ammo_capacity
         self._field_waypoint_graph = field_waypoint_graph
         self._country = country
 
-        self._ally_trench_coords = trench_coord_list
+        self._friendly_frontline_coord = trench_coord_list[1]
         self._max_gunner = 6
+        self._timer = Timer()
         self._gunners = []
 
-        self.fill_gunners(group)    # spawn gunners at start
+        self.fill_gunners(group)  # spawn gunners at start
 
     def act(self, mouse_pos):
         self._update_rect()
-        self._calc_rand_shot()
 
-    def shoot(self, target):
-        # Condition 1: when full scale attack
+    def shoot(self, screen):
         if len(self._gunners) > 0:
-            pass
+
+            if self._timer.is_finished(10):
+                shot_coord = self._calc_shot_coord()
+                pygame.draw.circle(screen, (0, 255, 0), shot_coord)
+
+                self._timer.reset()
 
     def reload(self):
         pass
 
-    def _calc_rand_shot(self):
-        # early stages: shots were poor (mapping area) later stages: precise
-        pass
+    def _calc_shot_coord(self):
+        positive_reward = 20
+        negative_reward = -20
+        balance_reward = 0
+
+        friendly_frontline_x = self._friendly_frontline_coord[0]
+        friendly_frontline_y = self._friendly_frontline_coord[1]
+
+        self._shot_x = random.randint(0, friendly_frontline_x + positive_reward)
+        self._shot_y = random.randint(0, friendly_frontline_y + negative_reward)
+
+        return Coordinate(self._shot_x, self._shot_y)
 
     def add_soldier(self, soldier):
-        if isinstance(soldier, Gunners):    # soldiers must be Gunners (special force)
+        if isinstance(soldier, Gunners):  # soldiers must be Gunners (special force)
             self._gunners.append(soldier)
 
     def fill_gunners(self, group):
@@ -369,9 +388,14 @@ class Gun(Weapon):
         pass
 
 
+class FightingSide(Enum):
+    WEST = 0
+    EAST = 1
+
+
 class Country(Enum):
-    BRITAIN = pygame.color.Color(255, 0, 0)
-    GERMANY = pygame.color.Color(127, 127, 127)
+    BRITAIN = (pygame.color.Color(107, 94, 65), FightingSide.WEST)
+    GERMANY = (pygame.color.Color(75, 83, 72), FightingSide.EAST)
 
 
 class WeaponType(Enum):

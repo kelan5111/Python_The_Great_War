@@ -9,78 +9,78 @@ class Node:
     next_id = 0
 
     def __init__(self, coord):
-        self.__neighbours = []
+        self._neighbours = []
 
-        self.__ID = Node.next_id + 1
-        self.__coord = coord
-        self.__show = False
-        self.__debug_colour = (128, 255, 0)
+        self._ID = Node.next_id + 1
+        self._coord = coord
+        self._show = False
+        self._debug_colour = (128, 255, 0)
 
-        self.__visited = False
-        self.__distance = 0
-        self.__parent = None
+        self._visited = False
+        self._distance = 0
+        self._parent = None
 
         Node.next_id += 1
 
     def __repr__(self):
-        return f'Node ID: {self.__ID}'
+        return f'Node ID: {self._ID}'
 
     def draw(self, screen, camera):
-        screen_coord = camera.translate_coord(self.__coord.get_coord())
-        pygame.draw.circle(screen, self.__debug_colour, screen_coord, Node.RADIUS)
+        screen_coord = camera.translate_coord(self._coord.get_coord())
+        pygame.draw.circle(screen, self._debug_colour, screen_coord, Node.RADIUS)
 
     def add_neighbour(self, node):
-        self.__neighbours.append(node)
+        self._neighbours.append(node)
 
     def get_neighbours(self):
-        return [n for n in self.__neighbours]
+        return [n for n in self._neighbours]
 
     def show(self):
-        self.__show = True
+        self._show = True
 
     def hide(self):
-        self.__show = False
+        self._show = False
 
     def is_showing(self):
-        return self.__show
+        return self._show
 
     def get_ID(self):
-        return self.__ID
+        return self._ID
 
     def set_parent(self, parent_node):
-        self.__parent = parent_node
+        self._parent = parent_node
 
     def get_parent(self):
-        return self.__parent
+        return self._parent
 
     def set_distance(self, distance):
-        self.__distance = distance
+        self._distance = distance
 
     def get_distance(self):
-        return self.__distance
+        return self._distance
 
     def has_visited(self):
-        return self.__visited
+        return self._visited
 
     def set_visited(self, visited):
-        self.__visited = visited
+        self._visited = visited
 
     def set_debug_colour(self, debug_colour):
-        self.__debug_colour = debug_colour
+        self._debug_colour = debug_colour
 
     def get_coord(self):
-        return self.__coord
+        return self._coord
 
 
 class Graph:
     def __init__(self, width=None, height=None, spaced=None):
-        self.__width = width
-        self.__height = height
-        self.__spaced = spaced
+        self._width = width
+        self._height = height
+        self._spaced = spaced
 
-        self.__debug = False
+        self._debug = False
 
-        self.__nodes = []
+        self._nodes = []
 
     def __str__(self):
         return "Graph"
@@ -92,26 +92,26 @@ class Graph:
 
         if width_coord is not None and height_coord is not None:
             start_width_x = width_coord[0]
-            self.__width = width_coord[1]
+            self._width = width_coord[1]
             start_height_x = height_coord[0]
-            self.__height = height_coord[1]
+            self._height = height_coord[1]
 
-        for x in range(start_width_x, self.__width, self.__spaced):
+        for x in range(start_width_x, self._width, self._spaced):
             column = []  # Create a new empty column for every X
-            for y in range(start_height_x, self.__height, self.__spaced):
-                column.append(Node(Coordinate(x + self.__spaced, y + self.__spaced)))  # Add nodes to the column
+            for y in range(start_height_x, self._height, self._spaced):
+                column.append(Node(Coordinate(x + self._spaced, y + self._spaced)))  # Add nodes to the column
             temp.append(column)
 
         # Building the graph
-        self.__build_graph(temp)
+        self._build_graph(temp)
 
-    def __build_graph(self, temp):
+    def _build_graph(self, temp):
         for col in range(len(temp)):
             for row in range(len(temp[col])):
                 current_node = temp[col][row]
 
-                if current_node not in self.__nodes:
-                    self.__nodes.append(current_node)
+                if current_node not in self._nodes:
+                    self._nodes.append(current_node)
                     current_node.show()
 
                 possible_pos = [(col, row - 1), (col, row + 1), (col - 1, row), (col + 1, row)]
@@ -121,17 +121,17 @@ class Graph:
                         current_node.add_neighbour(temp[poss_col][poss_row])
 
     def draw(self, screen, camera):
-        if self.__debug:
-            for node in self.__nodes:
+        if self._debug:
+            for node in self._nodes:
                 node.draw(screen, camera)
 
-    def __breadth_first_search(self, start, waypoint_id):
+    def _breadth_first_search(self, start, waypoint_id):
         if start is None:  # If there isn't a start pos (start of game)
-            source_node = self.__nodes[0]
+            source_node = self._nodes[0]
         else:  # There is a start pos
             source_node = start
 
-        for node in self.__nodes:
+        for node in self._nodes:
             node.set_visited(False)
             node.set_distance(0)
             node.set_parent(None)
@@ -166,10 +166,10 @@ class Graph:
         if len(path) == 0:
             if target_waypoint is None:
                 # BFS search for path without a target
-                target_waypoint = self.__breadth_first_search(start, waypoint_id)
+                target_waypoint = self._breadth_first_search(start, waypoint_id)
             else:
                 # BFS search for path with a target
-                target_waypoint = self.__breadth_first_search(start, target_waypoint.get_ID())
+                target_waypoint = self._breadth_first_search(start, target_waypoint.get_ID())
 
         # Base case: until we reach the start node
         parent = target_waypoint.get_parent()
@@ -185,7 +185,7 @@ class Graph:
         closest_waypoint = None
         closest_distance = None
 
-        for node in self.__nodes:
+        for node in self._nodes:
             distance = node.get_coord().calculate_distance(coord)
 
             if closest_distance is None:
@@ -199,7 +199,7 @@ class Graph:
         return closest_waypoint
 
     def set_debug(self, debug=False):
-        self.__debug = debug
+        self._debug = debug
 
     def get_nodes(self):
-        return self.__nodes
+        return self._nodes

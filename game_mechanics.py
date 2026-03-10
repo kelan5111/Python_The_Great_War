@@ -10,6 +10,7 @@ class Actor(ABC):
     def __init__(self, coord, width, height, group):
         self._world_coord = coord
         self._screen_coord = Coordinate(0, 0)
+        self._actor_list = group.get_actors()
 
         self._width = width
         self._height = height
@@ -23,11 +24,11 @@ class Actor(ABC):
             group.add(self)
 
     @abstractmethod
-    def draw(self, screen, camera):
+    def draw(self, *args):
         pass
 
     @abstractmethod
-    def act(self, mouse_pos):
+    def act(self, *args):
         pass
 
     def has_collided(self, other):
@@ -84,56 +85,94 @@ class Actor(ABC):
 
 class Group:
     def __init__(self, screen):
-        self.__actors = []
-        self.__screen = screen
+        self._actors = []
+        self._screen = screen
 
     def draw(self, camera):
-        for actor in self.__actors:
-            actor.draw(self.__screen, camera)
+        for actor in self._actors:
+            actor.draw(self._screen, camera)
 
     def act(self, mouse_pos):
-        for actor in self.__actors:
+        for actor in self._actors:
             actor.act(mouse_pos)
 
         # Remove any actors who are not alive
-        self.__remove()
+        self._check_removal()
 
     def add(self, actor):
-        self.__actors.append(actor)
+        self._actors.append(actor)
+
+    def find_all(self, obj_type):
+        return [actor for actor in self._actors if isinstance(actor, obj_type)]
 
     def find(self, obj_type):
-        return [actor for actor in self.__actors if isinstance(actor, obj_type)]
+        for actor in self._actors:
+            if isinstance(actor, obj_type):
+                return actor
 
-    def __remove(self):
-        for actor in self.__actors:
+    def _check_removal(self):
+        for actor in self._actors:
             if not actor.is_alive():
-                self.__actors.remove(actor)
+                self._actors.remove(actor)
+
+    def remove_all(self, o):
+        try:
+            for actor in self._actors:
+                if isinstance(actor, o):
+                    self._actors.remove(actor)
+        except TypeError:
+            print("Not a valid object.")
 
     def get_actors(self):
-        return self.__actors
+        return self._actors
+
+
+class NPCGroup(Group):
+    def __init__(self, screen):
+        super().__init__(screen)
+
+
+class WeaponGroup(Group):
+    def __init__(self, screen):
+        super().__init__(screen)
+
+
+class ParticleGroup(Group):
+    def __init__(self, screen):
+        super().__init__(screen)
+
+
+class UIGroup(Group):
+    def __init__(self, screen):
+        super().__init__(screen)
+
+
+class EnvironmentGroup(Group):
+    def __init__(self, screen):
+        super().__init__(screen)
 
 
 class Camera:
     def __init__(self, width, height):
-        self.__screen_width = width
-        self.__screen_height = height
+        self._screen_width = width
+        self._screen_height = height
 
-        self.__coord = Coordinate(0, 0)
-        self.__camera_speed = 200
+        self._coord = Coordinate(0, 0)
+        self._camera_speed = 200
 
     def update(self, direction, dt):
-        new_x = self.__coord.get_x()
-        new_y = self.__coord.get_y()
+        new_x = self._coord.get_x()
+        new_y = self._coord.get_y()
 
-        new_x += direction.value[0] * (self.__camera_speed * dt)
-        new_y += direction.value[1] * (self.__camera_speed * dt)
+        new_x += direction.value[0] * (self._camera_speed * dt)
+        new_y += direction.value[1] * (self._camera_speed * dt)
 
-        self.__coord.set_x(new_x)
-        self.__coord.set_y(new_y)
+        self._coord.set_x(new_x)
+        self._coord.set_y(new_y)
 
     def translate_rect(self, world_rect):
-        offset_x = self.__coord.get_x()
-        offset_y = self.__coord.get_y()
+        offset_x = self._coord.get_x()
+        offset_y = self._coord.get_y()
 
         screen_rect = world_rect.copy()
 
@@ -143,8 +182,8 @@ class Camera:
         return screen_rect
 
     def translate_mouse_pos(self, world_mouse_pos):
-        offset_x = self.__coord.get_x()
-        offset_y = self.__coord.get_y()
+        offset_x = self._coord.get_x()
+        offset_y = self._coord.get_y()
 
         screen_mouse_x = world_mouse_pos[0] + offset_x
         screen_mouse_y = world_mouse_pos[1] + offset_y
@@ -152,8 +191,8 @@ class Camera:
         return screen_mouse_x, screen_mouse_y
 
     def translate_coord(self, coord):
-        offset_x = self.__coord.get_x()
-        offset_y = self.__coord.get_y()
+        offset_x = self._coord.get_x()
+        offset_y = self._coord.get_y()
 
         screen_coord_x = coord[0] - offset_x
         screen_coord_y = coord[1] - offset_y
@@ -161,18 +200,26 @@ class Camera:
         return screen_coord_x, screen_coord_y
 
     def get_coord(self):
-        return self.__coord
+        return self._coord
 
 
 class Timer:
     def __init__(self):
-        self.__start_time = None
+        self._start_time = 0
+
+        self.start()
+
+    def __str__(self):
+        return f"Timer: {self._start_time}"
 
     def start(self):
-        self.__start_time = pygame.time.get_ticks()
+        self._start_time = pygame.time.get_ticks()
 
-    def __elapsed(self):
-        return pygame.time.get_ticks() - self.__start_time
+    def _elapsed(self):
+        return pygame.time.get_ticks() - self._start_time
 
-    def finished(self, length_secs):
-        return self.__elapsed() >= length_secs * 1000
+    def is_finished(self, length_secs):
+        return self._elapsed() >= length_secs * 1000
+
+    def reset(self):
+        self._start_time = pygame.time.get_ticks()

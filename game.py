@@ -4,144 +4,162 @@ import random
 from waypoint import Graph
 from coordinate import Coordinate, Direction
 from npc import Soldier, Country, Gun, Artillery
-from game_mechanics import Group, Timer, Camera
+from game_mechanics import (NPCGroup, WeaponGroup, ParticleGroup, UIGroup,
+                            Timer, Camera, ParticleGroup, EnvironmentGroup)
 from game_gui import SelectBox, Button, InteractiveTab, Console
 from trench import FrontLineTrench, SupportTrench, Trench
 
 
 class Game:
     def __init__(self, width, height, player_country):
-        self.__countries = [Country.GERMANY, Country.BRITAIN]
-        self.__player = player_country
-        self.__player_num = random.randint(0, 2)
+        self._countries = [Country.BRITAIN, Country.GERMANY]
+        self._player_country = player_country
+        self._player_num = random.randint(0, 2)
 
-        self.__width = width
-        self.__height = height
-        self.__screen = pygame.display.set_mode((width, height), pygame.FULLSCREEN, vsync=1)
-        self.__dt = 0.0
+        self._width = width
+        self._height = height
+        self._screen = pygame.display.set_mode((width, height), pygame.FULLSCREEN, vsync=1)
+        self._dt = 0.0
 
-        self.__world_camera = Camera(self.__width, self.__height)
+        self._world_camera = Camera(self._width, self._height)
 
-        self.__width = width
-        self.__height = height
-        self.__ground_colour = (48, 35, 9)
-        self.__running = True
+        self._width = width
+        self._height = height
+        self._ground_colour = (48, 35, 9)
+        self._running = True
 
-        self.__group = Group(self.__screen)
+        self._npc_group = NPCGroup(self._screen)
+        self._weapon_group = WeaponGroup(self._screen)
+        self._particle_group = ParticleGroup(self._screen)
+        self._environment_group = EnvironmentGroup(self._screen)
+        self._ui_group = UIGroup(self._screen)
 
-        self.__field_waypoints = Graph(self.__width + (self.__width // 2), self.__height, 30)
-        self.__field_waypoints.build()
-
-        self.__select_box = SelectBox(player_country, 0, 0, self.__group)
-        self.__timer = Timer()
-        self.__interactive_tab = InteractiveTab(self.__width)
-        self.__debug_console = None
+        self._field_waypoints = Graph(self._width + (self._width // 2), self._height, 30)
+        self._field_waypoints.build()
+        self._timer = Timer()
 
     def run(self):
         clock = pygame.time.Clock()
 
-        self.__initialize_objects()
-        self.__initialize_waypoints()
+        self._initialize()
 
-        while self.__running:
+        while self._running:
             world_mouse_pos = pygame.mouse.get_pos()
-            screen_mouse_pos = self.__world_camera.translate_mouse_pos(world_mouse_pos)
-            self.__dt = clock.tick(60) / 1000.0
+            screen_mouse_pos = self._world_camera.translate_mouse_pos(world_mouse_pos)
+            self._dt = clock.tick(60) / 1000.0
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    self.__running = False
+                    self._running = False
 
-                self.__manage_input(event, screen_mouse_pos)
+                self._manage_input(event, screen_mouse_pos)
 
-            self.__update(screen_mouse_pos)
-            self.__manage_camera_input()
-            self.__draw()
+            self._act(screen_mouse_pos)
+            self._manage_camera_input()
+            self._draw()
 
             pygame.display.flip()
             clock.tick(60)
 
         pygame.quit()
 
-    def __draw(self):
-        self.__screen.fill(self.__ground_colour)
-        self.__group.draw(self.__world_camera)
-        self.__field_waypoints.draw(self.__screen, self.__world_camera)
-        self.__interactive_tab.draw(self.__screen, self.__world_camera)
-        self.__debug_console.draw(self.__screen, self.__world_camera)
+    def _draw(self):
+        self._screen.fill(self._ground_colour)
 
-    def __update(self, mouse_pos):
-        self.__group.act(mouse_pos)
-        self.__interactive_tab.update()
-        self.__debug_console.update()
+        self._particle_group.draw(self._world_camera)
+        self._environment_group.draw(self._world_camera)
+        self._ui_group.draw(self._world_camera)
+        self._npc_group.draw(self._world_camera)
+        self._weapon_group.draw(self._world_camera)
 
-    def __initialize_objects(self):
+        self._field_waypoints.draw(self._screen, self._world_camera)
+
+    def _act(self, mouse_pos):
+        self._npc_group.act(mouse_pos)
+        self._weapon_group.act(mouse_pos)
+        self._particle_group.act(mouse_pos)
+        self._environment_group.act(mouse_pos)
+        self._ui_group.act(mouse_pos)
+
+    def _initialize_ui(self, trench_list):
+        select_box = SelectBox(Coordinate(0, 0), self._player_country, 0, 0, self._ui_group)
+
+        console = Console(Coordinate(0, self._height - 40), self._width, 200, self._ui_group,
+                          (0, 0, 0), '[CONSOLE]', self._field_waypoints, trench_list)
+
+        interactive_tab = InteractiveTab(Coordinate(0, 0), self._width, 40, self._ui_group)
+
+    def _initialize(self):
         pygame.display.set_caption('The Great War')
 
-        button_one = Button((255, 0, 0), (255, 255, 255), "Button One", 0, (0, 0, 0))
-        self.__interactive_tab.add_icon(button_one)
+        '''button_one = Button(Coordinate(0, 0), 0, 0, self._ui_group,
+                            (0, 0, 0), "Button One", 0, (0, 0, 0), (0, 0, 0))
 
-        front_line_one = FrontLineTrench(Coordinate(150, 0), 50, self.__height, 10, self.__player, self.__ground_colour,
-                                         self.__group)
-        support_line_one = SupportTrench(Coordinate(50, 0), 50, self.__height, 50, self.__player, self.__ground_colour,
-                                         self.__group)
-        front_line_two = FrontLineTrench(Coordinate(self.__width - 200, 0), 50, self.__height, 10, Country.GERMANY,
-                                         self.__ground_colour, self.__group)
-        support_line_two = SupportTrench(Coordinate(self.__width - 100, 0), 50, self.__height, 50, Country.GERMANY,
-                                         self.__ground_colour, self.__group)
+        self._interactive_tab.add_icon(button_one)'''
+
+        front_line_one = FrontLineTrench(Coordinate(150, 0), 50, self._height, 10, self._player_country,
+                                         self._ground_colour,
+                                         self._environment_group)
+        support_line_one = SupportTrench(Coordinate(50, 0), 50, self._height, 50, self._player_country,
+                                         self._ground_colour,
+                                         self._environment_group)
+        front_line_two = FrontLineTrench(Coordinate(self._width - 200, 0), 50, self._height, 10, Country.GERMANY,
+                                         self._ground_colour, self._environment_group)
+        support_line_two = SupportTrench(Coordinate(self._width - 100, 0), 50, self._height, 50, Country.GERMANY,
+                                         self._ground_colour, self._environment_group)
 
         support_line_trenches_proximity = [support_line_one.get_proximity(), support_line_two.get_proximity()]
         front_line_trenches_proximity = [support_line_one, support_line_two]
+        trench_list = [support_line_one, support_line_two, front_line_one, front_line_two]
 
-        self.__debug_console = Console(Coordinate(0, self.__height - 40), self.__width, 200, (0, 0, 0),
-                                       '[CONSOLE]', self.__field_waypoints,
-                                       [front_line_one, support_line_one, front_line_two, support_line_two])
+        self._initialize_waypoints()
+        self._initialize_ui(trench_list)
+        self._initialize_soldiers(10, support_line_trenches_proximity, front_line_trenches_proximity)
+        self._initialize_artillery(support_line_trenches_proximity)
 
-        self.__initialize_soldiers(10, support_line_trenches_proximity, front_line_trenches_proximity)
-        self.__initialize_artillery(support_line_trenches_proximity)
+    def _initialize_waypoints(self):
+        self._field_waypoints.build()
+        self._field_waypoints.draw(self._screen, self._world_camera)
 
-    def __initialize_waypoints(self):
-        self.__field_waypoints.build()
-        self.__field_waypoints.draw(self.__screen, self.__world_camera)
+    def _manage_input(self, event, mouse_pos):
+        self._manage_mouse_input(event, mouse_pos)
+        self._manage_key_input(event)
 
-    def __manage_input(self, event, mouse_pos):
-        self.__manage_mouse_input(event, mouse_pos)
-        self.__manage_key_input(event)
-
-    def __manage_mouse_input(self, event, mouse_pos):
+    def _manage_mouse_input(self, event, mouse_pos):
 
         if event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1:
+                select_box = self._ui_group.find(SelectBox)
                 # If we are dragging a select box
-                if self.__select_box.is_pressed():
-                    self.__select_box.end_drag(self.__group.get_actors())
+                if select_box.is_pressed():
+                    select_box.end_drag(self._npc_group.get_actors())
 
                 # If we are selecting a type from collision_options manually on screen
-                for actor in self.__group.get_actors():
+                for actor in self._npc_group.get_actors():
                     if isinstance(actor, Soldier):
-                        if (actor.get_country() == self.__player and
+                        if (actor.get_country() == self._player_country and
                                 actor.has_collided(mouse_pos)):
                             actor.set_select(True)
 
-                for section in self.__interactive_tab.get_sections():
+                for section in self._interactive_tab.get_sections():
                     if isinstance(section, Button):
                         section.set_select(False)
 
             # Any soldier is selected they will move to mouse pos
             if event.button == 3:
-                for actor in self.__group.get_actors():
+                for actor in self._npc_group.get_actors():
                     if isinstance(actor, Soldier):
                         if actor.has_selected() and not actor.is_idle():
                             actor.set_path(mouse_pos)
                             actor.set_select(False)
 
-                            options = (trench for trench in self.__group.find(Trench) if trench.has_hover())
-                            selected_trench = next(options, None)
+                            # options = (trench for trench in self._group.find(Trench) if trench.has_hover())
+                            # selected_trench = next(options, None)
 
-                            if selected_trench is not None:
+                            '''if selected_trench is not None:
                                 # Change the waypoint graph of the soldier to the trench's
                                 actor.set_next_waypoint_graph(selected_trench.get_waypoint_graph())
-                                actor.set_idle(True)
+                                actor.set_idle(True)'''
 
                     # Unselect Trench once selected
                     elif isinstance(actor, Trench):
@@ -149,57 +167,61 @@ class Game:
                             actor.set_select(False)
 
         if event.type == pygame.MOUSEBUTTONDOWN:
-            # If we click and hold then select box
-            if event.button == 1:
-                self.__select_box.pressed(mouse_pos)
+            console = self._ui_group.find(Console)
 
-                for section in self.__interactive_tab.get_sections():
+            if event.button == 1:
+                select_box = self._ui_group.find(SelectBox)
+                select_box.pressed(mouse_pos)
+
+                for section in self._interactive_tab.get_sections():
                     if section.has_collided(mouse_pos):
                         if isinstance(section, Button):
                             section.set_select(True)
 
                 # If a text box is selected
-                if self.__debug_console.has_collided(mouse_pos):
-                    self.__debug_console.set_active(True)
+                if console.has_collided(mouse_pos):
+                    console.set_active(True)
                 else:
-                    self.__debug_console.set_active(False)
+                    console.set_active(False)
 
             # Select Trench
             if event.button == 3:
-                for actor in self.__group.get_actors():
-                    if isinstance(actor, Trench) and actor.get_country() == self.__player:
+                for actor in self._environment_group.get_actors():
+                    if isinstance(actor, Trench) and actor.get_country() == self._player_country:
                         if actor.has_hover():
                             actor.set_select(True)
 
-    def __manage_key_input(self, event):
+    def _manage_key_input(self, event):
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_BACKSLASH:
-                if self.__debug_console.is_shown():
-                    self.__debug_console.set_show(False)
-                else:
-                    self.__debug_console.set_active(True)
-                    self.__debug_console.set_show(True)
+            console = self._ui_group.find(Console)
 
-            elif self.__debug_console.is_active():
+            if event.key == pygame.K_BACKSLASH:
+                if console.is_shown():
+                    console.set_show(False)
+                else:
+                    console.set_active(True)
+                    console.set_show(True)
+
+            elif console.is_active():
                 # Managing the consoles text input
                 if event.key == pygame.K_RETURN:
-                    self.__debug_console.execute_command()
+                    console.execute_command()
 
                 elif event.key == pygame.K_BACKSPACE:
-                    self.__debug_console.remove_char()
+                    console.remove_char()
                 else:
-                    self.__debug_console.insert_char(event.unicode)
+                    console.insert_char(event.unicode)
 
-    def __manage_camera_input(self):
+    def _manage_camera_input(self):
         keys = pygame.key.get_pressed()
 
         # Manage the movement of the camera
         if keys[pygame.K_d]:
-            self.__world_camera.update(Direction.RIGHT, self.__dt)
+            self._world_camera.update(Direction.RIGHT, self._dt)
         elif keys[pygame.K_a]:
-            self.__world_camera.update(Direction.LEFT, self.__dt)
+            self._world_camera.update(Direction.LEFT, self._dt)
 
-    def __initialize_soldiers(self, num_soldiers, trench_coord_list, starting_trenches):
+    def _initialize_soldiers(self, num_soldiers, trench_coord_list, starting_trenches):
         for sides in range(0, 2):
             for soldier_count in range(num_soldiers):
                 starting_trench = starting_trenches[sides]
@@ -210,20 +232,19 @@ class Game:
 
                 trench_waypoint_graph = starting_trench.get_waypoint_graph()
 
-                soldier = Soldier(Coordinate(rand_x, rand_y), 20, 20, trench_waypoint_graph, self.__countries[sides],
-                                  self.__group)
+                soldier = Soldier(Coordinate(rand_x, rand_y), 20, 20, trench_waypoint_graph, self._countries[sides],
+                                  self._npc_group)
 
                 bolt_action_rifle = Gun(Coordinate(500, 500), 10, 10, "none",
                                         10, 10, 10,
-                                        self.__group)
+                                        self._weapon_group)
 
                 soldier.set_weapon(bolt_action_rifle)
 
-    def __initialize_artillery(self, trenches_coords):
+    def _initialize_artillery(self, trenches_coords):
         spaced = 70
         height = 40
-        total_artillery = self.__height // spaced
-        print(total_artillery)
+        total_artillery = self._height // spaced
         trench_distance = 400
 
         curr_y = 0
@@ -231,20 +252,18 @@ class Game:
         for side in range(0, 2):
             new_x = 0
             new_y = 0
-            country = None
+            country = self._countries[side]
             side_trench_coord = trenches_coords[side]
             support_trench_coord = side_trench_coord[0]
 
-            if side == 0:   # Left side minus x coord
+            if side == 0:  # left side minus x coord
                 new_x = support_trench_coord[0] - trench_distance
-                country = Country.GERMANY
-            elif side == 1:   # Right side add x coord
+            elif side == 1:  # right side add x coord
                 new_x = support_trench_coord[0] + trench_distance
-                country = Country.BRITAIN
 
             for artillery_count in range(total_artillery):
                 new_y += (curr_y + spaced)
 
                 artillery = Artillery(Coordinate(new_x, new_y), 50, 20,
                                       10, 10, 100,
-                                      side_trench_coord, self.__group, self.__field_waypoints, country)
+                                      side_trench_coord, self._weapon_group, self._field_waypoints, country)
