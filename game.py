@@ -3,7 +3,8 @@ import random
 
 from waypoint import Graph
 from coordinate import Coordinate, Direction
-from npc import Soldier, Country, Gun, Artillery, FightingDirection
+from npc import Soldier, Country, FightingDirection
+from weapon_resources import Gun, Artillery
 from game_mechanics import (NPCGroup, WeaponGroup, ParticleGroup, UIGroup,
                             Timer, Camera, ParticleGroup, EnvironmentGroup)
 from game_gui import SelectBox, Button, InteractiveTab, Console

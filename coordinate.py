@@ -48,6 +48,10 @@ class Coordinate:
     def calc_center(self, width, height):
         return self._x + width / 2, self._y + height / 2
 
+    def equals(self, other):
+        if isinstance(other, Coordinate):
+            return self._coord != other.get_coord()
+
     def get_coord(self):
         return self._coord
 
