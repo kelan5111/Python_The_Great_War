@@ -9,7 +9,6 @@ from coordinate import Coordinate, Direction
 class Actor(ABC):
     def __init__(self, coord, width, height, group):
         self._world_coord = coord
-        self._screen_coord = Coordinate(0, 0)
         self._actor_list = group.get_actors()
 
         self._width = width

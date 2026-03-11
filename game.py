@@ -3,7 +3,7 @@ import random
 
 from waypoint import Graph
 from coordinate import Coordinate, Direction
-from npc import Soldier, Country, Gun, Artillery
+from npc import Soldier, Country, Gun, Artillery, FightingDirection
 from game_mechanics import (NPCGroup, WeaponGroup, ParticleGroup, UIGroup,
                             Timer, Camera, ParticleGroup, EnvironmentGroup)
 from game_gui import SelectBox, Button, InteractiveTab, Console
@@ -14,7 +14,10 @@ class Game:
     def __init__(self, width, height, player_country):
         self._countries = [Country.BRITAIN, Country.GERMANY]
         self._player_country = player_country
-        self._player_num = random.randint(0, 2)
+        self._ai_country = Country.GERMANY
+        self._player_fighting_direction = player_country.value[1]
+        self._ai_fighting_direction = self._ai_country.value[1]
+        self._fighting_directions = [FightingDirection.WEST, FightingDirection.EAST]
 
         self._width = width
         self._height = height
@@ -109,12 +112,12 @@ class Game:
                                          self._ground_colour, self._environment_group)
 
         support_line_trenches_proximity = [support_line_one.get_proximity(), support_line_two.get_proximity()]
-        front_line_trenches_proximity = [support_line_one, support_line_two]
+        support_lines = [support_line_one, support_line_two]
         trench_list = [support_line_one, support_line_two, front_line_one, front_line_two]
 
         self._initialize_waypoints()
         self._initialize_ui(trench_list)
-        self._initialize_soldiers(10, support_line_trenches_proximity, front_line_trenches_proximity)
+        self._initialize_soldiers(10, support_line_trenches_proximity, support_lines)
         self._initialize_artillery(support_line_trenches_proximity)
 
     def _initialize_waypoints(self):
@@ -130,6 +133,8 @@ class Game:
         if event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1:
                 select_box = self._ui_group.find(SelectBox)
+                interactive_tab = self._ui_group.find(InteractiveTab)
+
                 # If we are dragging a select box
                 if select_box.is_pressed():
                     select_box.end_drag(self._npc_group.get_actors())
@@ -141,7 +146,7 @@ class Game:
                                 actor.has_collided(mouse_pos)):
                             actor.set_select(True)
 
-                for section in self._interactive_tab.get_sections():
+                for section in interactive_tab.get_sections():
                     if isinstance(section, Button):
                         section.set_select(False)
 
@@ -171,9 +176,11 @@ class Game:
 
             if event.button == 1:
                 select_box = self._ui_group.find(SelectBox)
+                interactive_tab = self._ui_group.find(InteractiveTab)
+
                 select_box.pressed(mouse_pos)
 
-                for section in self._interactive_tab.get_sections():
+                for section in interactive_tab.get_sections():
                     if section.has_collided(mouse_pos):
                         if isinstance(section, Button):
                             section.set_select(True)
@@ -241,7 +248,7 @@ class Game:
 
                 soldier.set_weapon(bolt_action_rifle)
 
-    def _initialize_artillery(self, trenches_coords):
+    def _initialize_artillery(self, support_lines_prox):
         spaced = 70
         height = 40
         total_artillery = self._height // spaced
@@ -249,21 +256,33 @@ class Game:
 
         curr_y = 0
 
-        for side in range(0, 2):
+        for fighting_direction in self._fighting_directions:
             new_x = 0
             new_y = 0
-            country = self._countries[side]
-            side_trench_coord = trenches_coords[side]
-            support_trench_coord = side_trench_coord[0]
+            country = None
+            friendly_support_trench_coord = None
+            enemy_support_trench_coord = None
 
-            if side == 0:  # left side minus x coord
-                new_x = support_trench_coord[0] - trench_distance
-            elif side == 1:  # right side add x coord
-                new_x = support_trench_coord[0] + trench_distance
+            if fighting_direction == FightingDirection.WEST:  # left side minus x coord
+                country = self._player_country
+
+                friendly_support_trench_coord = support_lines_prox[FightingDirection.WEST.value][0]
+                enemy_support_trench_coord = support_lines_prox[FightingDirection.EAST.value][0]
+
+                new_x = friendly_support_trench_coord[0] - trench_distance
+
+            elif fighting_direction == FightingDirection.EAST:  # right side add x coord
+                country = self._ai_country
+
+                friendly_support_trench_coord = support_lines_prox[FightingDirection.EAST.value][0]
+                enemy_support_trench_coord = support_lines_prox[FightingDirection.WEST.value][0]
+                new_x = friendly_support_trench_coord[0] + trench_distance
 
             for artillery_count in range(total_artillery):
                 new_y += (curr_y + spaced)
 
-                artillery = Artillery(Coordinate(new_x, new_y), 50, 20,
-                                      10, 10, 100,
-                                      side_trench_coord, self._weapon_group, self._field_waypoints, country)
+                new_coord = Coordinate(new_x, new_y)
+
+                artillery = Artillery(new_coord, 50, 20, 10, 10, 100,
+                                      friendly_support_trench_coord, enemy_support_trench_coord,
+                                      self._weapon_group, self._field_waypoints, country)

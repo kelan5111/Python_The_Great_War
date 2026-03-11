@@ -304,8 +304,8 @@ class Weapon(Actor):
 
 
 class Artillery(Weapon):
-    def __init__(self, coord, width, height, shot_range, shot_speed, ammo_capacity, trench_coord_list, group,
-                 field_waypoint_graph, country=None):
+    def __init__(self, coord, width, height, shot_range, shot_speed, ammo_capacity, friendly_st, enemy_st,
+                 group, field_waypoint_graph, country):
         super().__init__(coord, width, height, shot_range, shot_speed, ammo_capacity, group)
 
         self._shot_radius = 5
@@ -316,39 +316,70 @@ class Artillery(Weapon):
         self._shell_supply = ammo_capacity
         self._field_waypoint_graph = field_waypoint_graph
         self._country = country
+        self._fighting_direction = country.value[1]
 
-        self._friendly_frontline_coord = trench_coord_list[1]
+        self._friendly_st_coord = friendly_st
+        self._enemy_st_coord = enemy_st
+
         self._max_gunner = 6
         self._timer = Timer()
         self._gunners = []
+        self._barrage_coord = None
 
         self.fill_gunners(group)  # spawn gunners at start
 
+    def draw(self, screen, camera):
+        super().draw(screen, camera)
+
+        self._draw_shot_marker(screen)
+
     def act(self, mouse_pos):
-        self._update_rect()
+        super().act()
 
-    def shoot(self, screen):
+        self._fire_random_projectile()
+
+    def shoot(self):
+        pass
+
+    def _fire_random_projectile(self):
         if len(self._gunners) > 0:
+            if self._timer.is_finished(5):
 
-            if self._timer.is_finished(10):
-                shot_coord = self._calc_shot_coord()
-                pygame.draw.circle(screen, (0, 255, 0), shot_coord)
+                self._barrage_coord = self._calc_projectile_shot()
 
                 self._timer.reset()
+
+    def _draw_shot_marker(self, screen):
+        if self._barrage_coord is not None:
+            pygame.draw.circle(screen, (0, 0, 255),
+                               self._barrage_coord.get_coord(), self._shot_radius)
 
     def reload(self):
         pass
 
-    def _calc_shot_coord(self):
+    def _calc_projectile_shot(self):
         positive_reward = 20
         negative_reward = -20
         balance_reward = 0
 
-        friendly_frontline_x = self._friendly_frontline_coord[0]
-        friendly_frontline_y = self._friendly_frontline_coord[1]
+        if self._fighting_direction == FightingDirection.EAST.value:
+            projectile_start_x = self._enemy_st_coord[0]
+            projectile_end_x = self._friendly_st_coord[0]
+            projectile_start_y = self._enemy_st_coord[1]
+            projectile_end_y = self._friendly_st_coord[1]
+        else:
+            projectile_start_x = self._friendly_st_coord[0]
+            projectile_end_x = self._enemy_st_coord[0]
+            projectile_start_y = self._friendly_st_coord[1]
+            projectile_end_y = self._enemy_st_coord[1]
 
-        self._shot_x = random.randint(0, friendly_frontline_x + positive_reward)
-        self._shot_y = random.randint(0, friendly_frontline_y + negative_reward)
+        min_x = min(projectile_start_x, projectile_end_x)
+        max_x = max(projectile_start_x, projectile_end_x)
+        min_y = min(projectile_start_y, projectile_end_y)
+        max_y = max(projectile_start_y, projectile_end_y)
+
+        self._shot_x = random.randint(min_x, max_x)
+        self._shot_y = random.randint(min_y, max_y)
 
         return Coordinate(self._shot_x, self._shot_y)
 
@@ -388,14 +419,14 @@ class Gun(Weapon):
         pass
 
 
-class FightingSide(Enum):
+class FightingDirection(Enum):
     WEST = 0
     EAST = 1
 
 
 class Country(Enum):
-    BRITAIN = (pygame.color.Color(107, 94, 65), FightingSide.WEST)
-    GERMANY = (pygame.color.Color(75, 83, 72), FightingSide.EAST)
+    BRITAIN = (pygame.color.Color(107, 94, 65), FightingDirection.WEST)
+    GERMANY = (pygame.color.Color(75, 83, 72), FightingDirection.EAST)
 
 
 class WeaponType(Enum):
