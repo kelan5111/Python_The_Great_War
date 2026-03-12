@@ -3,7 +3,7 @@ import random
 
 from waypoint import Graph
 from coordinate import Coordinate, Direction
-from npc import Soldier, Country, FightingDirection
+from npc import Soldier, Country, FightingDirection, Gunner
 from weapon_resources import Gun, Artillery
 from game_mechanics import (NPCGroup, WeaponGroup, ParticleGroup, UIGroup,
                             Timer, Camera, ParticleGroup, EnvironmentGroup)
@@ -282,8 +282,14 @@ class Game:
             for artillery_count in range(total_artillery):
                 new_y += (curr_y + spaced)
 
-                new_coord = Coordinate(new_x, new_y)
+                starting_pos = Coordinate(new_x, new_y)
 
-                artillery = Artillery(new_coord, 50, 20, 10, 10, 100,
+                artillery = Artillery(starting_pos, 50, 20, 10, 10, 100,
                                       friendly_support_trench_coord, enemy_support_trench_coord,
                                       self._weapon_group, self._field_waypoints, country)
+
+                gunner = Gunner(starting_pos, 0, 0, self._field_waypoints, country, self._npc_group)
+                gunner.set_idle(False)
+                gunner.set_weapon(artillery)
+
+                artillery.add_soldier(gunner)

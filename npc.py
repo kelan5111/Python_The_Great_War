@@ -1,5 +1,6 @@
 import pygame
 from enum import Enum
+
 from coordinate import Coordinate, Direction
 from abc import ABC, abstractmethod
 from game_mechanics import Actor, Timer
@@ -178,6 +179,8 @@ class Soldier(NPC):
 
     def kill(self):
         self._alive = False
+        if self.has_weapon():
+            self._weapon.kill()
         self._remove_weapon()
 
     def _detect_enemies(self):
@@ -198,7 +201,7 @@ class Soldier(NPC):
         if self.has_weapon():
             shot_success = self._calc_shot_chance()
             if shot_success:
-                self._weapon.shoot(self._enemy_lock)
+                self._weapon.shoot(self._enemy_lock, self._actors)
 
     def _calc_shot_chance(self):
         if self.has_weapon():
@@ -242,11 +245,18 @@ class SpecialForces(Soldier):
         return self._skill_lvl
 
 
-class Gunners(SpecialForces):
+class Gunner(SpecialForces):
     def __init__(self, coord, width, height, curr_waypoint_graph, country, group):
         super().__init__(coord, width, height, curr_waypoint_graph, country, group)
 
         self._regiment_colour = (0, 0, 153)
+        self._world_coord = coord
+
+    def act(self, mouse_pos):
+        super().act(mouse_pos)
+
+        if self._weapon is not None:
+            self._weapon.shoot_random_projectile(self._actors)
 
 
 class FightingDirection(Enum):

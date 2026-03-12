@@ -3,7 +3,7 @@ import random
 from abc import ABC, abstractmethod
 
 from game_mechanics import Actor, Timer
-from npc import Coordinate, Gunners, FightingDirection
+from npc import Coordinate, Gunner, FightingDirection, NPC
 
 
 class Weapon(Actor):
@@ -36,11 +36,10 @@ class Weapon(Actor):
 
     def act(self, *args):
         self._update_rect()
-        self._lock_to_owner()
         self._update_projectile()
 
     @abstractmethod
-    def shoot(self, *args):
+    def shoot(self, target_coord, npc_list):
         pass
 
     @abstractmethod
@@ -49,13 +48,6 @@ class Weapon(Actor):
 
     def _update_rect(self):
         self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
-
-    def _lock_to_owner(self):
-        if self._owner is not None:
-            new_x = self._owner.get_x()
-            new_y = self._owner.get_y()
-
-            self._world_coord = Coordinate(new_x, new_y)
 
     @abstractmethod
     def _update_projectile(self):
@@ -95,29 +87,26 @@ class Artillery(Weapon):
         self._gunners = []
         self._barrage_coord = None
 
-        self.fill_gunners(group)  # spawn gunners at start
-
     def draw(self, screen, camera):
         super().draw(screen, camera)
 
     def act(self, mouse_pos):
         super().act()
 
-        self._fire_random_projectile()
+    def shoot(self, target_coord, npc_list):
+        if len(self._gunners) > 0:
+            start_x = self._world_coord.get_x()
+            start_y = self._world_coord.get_y()
 
-    def shoot(self, target_coord):
-        start_x = self._world_coord.get_x()
-        start_y = self._world_coord.get_y()
+            shell = Shell(Coordinate(start_x, start_y), target_coord, speed=5, blast_factor=10, npc_list=npc_list)
+            self._active_projectile.append(shell)
 
-        shell = Shell(Coordinate(start_x, start_y), target_coord, speed=5, blast_factor=4)
-        self._active_projectile.append(shell)
-
-    def _fire_random_projectile(self):
+    def shoot_random_projectile(self, npc_list):
         if len(self._gunners) > 0:
             if self._timer.is_finished(10):
                 self._barrage_coord = self._calc_projectile_shot()
 
-                self.shoot(self._barrage_coord)
+                self.shoot(self._barrage_coord, npc_list)
 
                 self._timer.reset()
 
@@ -161,16 +150,7 @@ class Artillery(Weapon):
                     self._timer.reset()
 
     def add_soldier(self, soldier):
-        if isinstance(soldier, Gunners):  # soldiers must be Gunners (special force)
-            self._gunners.append(soldier)
-
-    def fill_gunners(self, group):
-        for gunner in range(self._max_gunner):
-            starting_pos = self._world_coord
-            gunner = Gunners(starting_pos, 0, 0, self._field_waypoint_graph, self._country, group)
-            gunner.set_idle(False)
-
-            self.add_soldier(gunner)
+        self._gunners.append(soldier)
 
     def remove_soldier(self, soldier):
         self._gunners.remove(soldier)
@@ -186,10 +166,18 @@ class Gun(Weapon):
         self._gun_type = gun_type
         self._magazine_capacity = 10
 
-    def shoot(self, target):
+    def act(self, mouse_pos):
+        super().act(mouse_pos)
+
+        self._lock_to_owner()
+
+    def shoot(self, target, npc_list):
         if self._magazine_capacity != 0 or self._ammo_capacity != 0:
+            start_coord = self._world_coord
+            bullet = Projectile(start_coord, target.get_coord(), speed=5, npc_list=npc_list)
+
+            self._active_projectile.append(bullet)
             self._magazine_capacity -= 1
-            target.kill()
 
     def _update_projectile(self):
         super()._update_projectile()
@@ -201,16 +189,26 @@ class Gun(Weapon):
     def reload(self):
         pass
 
+    def _lock_to_owner(self):
+        if self._owner is not None:
+            new_x = self._owner.get_x()
+            new_y = self._owner.get_y()
+
+            self._world_coord = Coordinate(new_x, new_y)
+
 
 class Projectile:
-    def __init__(self, start_coord, target_coord, speed):
+    def __init__(self, start_coord, target_coord, speed, npc_list):
         self._radius = 10
         self._colour = (0, 0, 0)
         self._speed = speed
+        self._npc_list = npc_list
+
         self._world_coord = start_coord
         self._target_coord = target_coord
 
         self._hit = False
+        self._targets_hit = []
 
     def draw(self, screen, camera):
         screen_coord = camera.translate_coord(self._world_coord.get_coord())
@@ -220,6 +218,7 @@ class Projectile:
 
     def update(self):
         self._move()
+        self._check_targets_hit()
 
     def _move(self):
         if not self._hit:
@@ -250,13 +249,30 @@ class Projectile:
 
         return Coordinate(new_x, new_y)
 
+    def _check_targets_hit(self):
+        if self._hit:
+            for npc in self._npc_list:
+                npc_coord = npc.get_coord()
+                distance_from_projectile = npc_coord.calculate_distance(self._world_coord.get_coord())
+
+                if distance_from_projectile <= self._radius:
+                    npc.kill()
+
     def has_hit(self):
         return self._hit
 
 
+class Bullet(Projectile):
+    def __init__(self, start_coord, target_coord, speed, npc_list):
+        super().__init__(start_coord, target_coord, speed, npc_list)
+
+    def _check_targets_hit(self):
+        pass
+
+
 class Shell(Projectile):
-    def __init__(self, start_coord, target_coord, speed, blast_factor):
-        super().__init__(start_coord, target_coord, speed)
+    def __init__(self, start_coord, target_coord, speed, blast_factor, npc_list):
+        super().__init__(start_coord, target_coord, speed, npc_list)
 
         self._blast_radius = self._radius * blast_factor
         self._debug = True
@@ -272,6 +288,15 @@ class Shell(Projectile):
 
             pygame.draw.circle(screen, self._colour, screen_coord,
                                self._blast_radius, width=4)
+
+    def _check_targets_hit(self):
+        if self._exploded:
+            for npc in self._npc_list:
+                npc_coord = npc.get_coord()
+                distance_from_blast = npc_coord.calculate_distance(self._world_coord.get_coord())
+
+                if distance_from_blast <= self._blast_radius:
+                    npc.kill()
 
     def has_exploded(self):
         return self._exploded
