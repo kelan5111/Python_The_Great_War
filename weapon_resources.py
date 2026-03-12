@@ -66,8 +66,8 @@ class Weapon(Actor):
 
 
 class Artillery(Weapon):
-    def __init__(self, coord, width, height, shot_range, shot_speed, ammo_capacity, friendly_st, enemy_st,
-                 group, field_waypoint_graph, country):
+    def __init__(self, coord, width, height, shot_range, shot_speed, ammo_capacity, friendly_slt_coord, enemy_slt_coord,
+                 friendly_flt_coord, enemy_flt_coord, group, field_waypoint_graph, country):
         super().__init__(coord, width, height, shot_range, shot_speed, ammo_capacity, group)
 
         self._shot_speed = 0
@@ -79,8 +79,10 @@ class Artillery(Weapon):
         self._country = country
         self._fighting_direction = country.value[1]
 
-        self._friendly_st_coord = friendly_st
-        self._enemy_st_coord = enemy_st
+        self._friendly_slt_coord = friendly_slt_coord
+        self._enemy_slt_coord = enemy_slt_coord
+        self._friendly_flt_coord = friendly_flt_coord
+        self._enemy_flt_coord = enemy_flt_coord
 
         self._max_gunner = 6
         self._timer = Timer()
@@ -119,15 +121,15 @@ class Artillery(Weapon):
         balance_reward = 0
 
         if self._fighting_direction == FightingDirection.EAST.value:
-            projectile_start_x = self._enemy_st_coord[0]
-            projectile_end_x = self._friendly_st_coord[0]
-            projectile_start_y = self._enemy_st_coord[1]
-            projectile_end_y = self._friendly_st_coord[1]
+            projectile_start_x = self._enemy_slt_coord[0]
+            projectile_end_x = self._friendly_flt_coord[0]
+            projectile_start_y = self._enemy_slt_coord[1]
+            projectile_end_y = self._friendly_flt_coord[1]
         else:
-            projectile_start_x = self._friendly_st_coord[0]
-            projectile_end_x = self._enemy_st_coord[0]
-            projectile_start_y = self._friendly_st_coord[1]
-            projectile_end_y = self._enemy_st_coord[1]
+            projectile_start_x = self._friendly_flt_coord[0]
+            projectile_end_x = self._enemy_slt_coord[0]
+            projectile_start_y = self._friendly_flt_coord[1]
+            projectile_end_y = self._enemy_slt_coord[1]
 
         min_x = min(projectile_start_x, projectile_end_x)
         max_x = max(projectile_start_x, projectile_end_x)
@@ -144,10 +146,7 @@ class Artillery(Weapon):
 
         for shell in self._active_projectile:
             if shell.has_exploded():
-                if self._timer.is_finished(5):  # wait 5 seconds until deletion
-                    self._active_projectile.remove(shell)
-
-                    self._timer.reset()
+                self._active_projectile.remove(shell)
 
     def add_soldier(self, soldier):
         self._gunners.append(soldier)
@@ -180,11 +179,13 @@ class Gun(Weapon):
             self._magazine_capacity -= 1
 
     def _update_projectile(self):
-        super()._update_projectile()
+        hits = [projectile for projectile in self._active_projectile
+                if projectile.has_hit()]
 
-        # delete bullet after it has hit a target
-        [self._active_projectile.remove(projectile) for projectile in self._active_projectile
-         if projectile.has_hit()]
+        if len(hits) > 2:
+            [hit.set_mute_sounds(True) for hit in hits]
+
+            self._active_projectile.clear()
 
     def reload(self):
         pass
@@ -207,6 +208,7 @@ class Projectile:
         self._world_coord = start_coord
         self._target_coord = target_coord
 
+        self._mute_sounds = False
         self._hit = False
         self._targets_hit = []
 
@@ -278,19 +280,29 @@ class Shell(Projectile):
         self._debug = True
         self._exploded = False
 
+        self._explosion_sound = pygame.mixer.Sound("assets/audio/artillery_explosion.wav")
+        self._incoming_sound = pygame.mixer.Sound("assets/audio/incoming_explosion.wav")
+        self._timer = Timer()
+
     def draw(self, screen, camera):
         super().draw(screen, camera)
 
         if self._debug and self.has_hit():
-            self._exploded = True
 
             screen_coord = camera.translate_coord(self._world_coord.get_coord())
 
             pygame.draw.circle(screen, self._colour, screen_coord,
                                self._blast_radius, width=4)
 
+    def update(self):
+        super().update()
+
+        self._execute_incoming_sound()
+
     def _check_targets_hit(self):
-        if self._exploded:
+        self._execute_incoming_sound()
+
+        if self._hit:
             for npc in self._npc_list:
                 npc_coord = npc.get_coord()
                 distance_from_blast = npc_coord.calculate_distance(self._world_coord.get_coord())
@@ -298,5 +310,24 @@ class Shell(Projectile):
                 if distance_from_blast <= self._blast_radius:
                     npc.kill()
 
+            if self._timer.is_finished(self._incoming_sound.get_length() * 1.5):
+                self._explosion_sound.play()
+
+            if self._timer.is_finished(self._explosion_sound.get_length() * 7):
+                self._exploded = True
+
+    def _execute_incoming_sound(self):
+        distance_from_explosion = self._world_coord.calculate_distance(self._target_coord)
+
+        if (self._blast_radius < distance_from_explosion < self._blast_radius * 2
+                and not self._mute_sounds):
+            self._incoming_sound.play()
+
+    def get_sounds(self):
+        return self._incoming_sound, self._explosion_sound
+
     def has_exploded(self):
         return self._exploded
+
+    def set_mute_sounds(self, mute_sounds):
+        self._mute_sounds = mute_sounds

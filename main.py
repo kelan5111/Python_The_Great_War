@@ -12,6 +12,7 @@ def calc_screen_resolution():
 def main():
     pygame.init()
     pygame.font.init()
+    pygame.mixer.init(frequency=22050, size=-16, channels=2, buffer=512)
 
     width, height = calc_screen_resolution()
 

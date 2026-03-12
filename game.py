@@ -101,25 +101,26 @@ class Game:
 
         self._interactive_tab.add_icon(button_one)'''
 
-        front_line_one = FrontLineTrench(Coordinate(150, 0), 50, self._height, 10, self._player_country,
+        front_line_west = FrontLineTrench(Coordinate(150, 0), 50, self._height, 10, self._player_country,
                                          self._ground_colour,
                                          self._environment_group)
-        support_line_one = SupportTrench(Coordinate(50, 0), 50, self._height, 50, self._player_country,
+        support_line_west = SupportTrench(Coordinate(50, 0), 50, self._height, 50, self._player_country,
                                          self._ground_colour,
                                          self._environment_group)
-        front_line_two = FrontLineTrench(Coordinate(self._width - 200, 0), 50, self._height, 10, Country.GERMANY,
+        front_line_east = FrontLineTrench(Coordinate(self._width - 200, 0), 50, self._height, 10, Country.GERMANY,
                                          self._ground_colour, self._environment_group)
-        support_line_two = SupportTrench(Coordinate(self._width - 100, 0), 50, self._height, 50, Country.GERMANY,
+        support_line_east = SupportTrench(Coordinate(self._width - 100, 0), 50, self._height, 50, Country.GERMANY,
                                          self._ground_colour, self._environment_group)
 
-        support_line_trenches_proximity = [support_line_one.get_proximity(), support_line_two.get_proximity()]
-        support_lines = [support_line_one, support_line_two]
-        trench_list = [support_line_one, support_line_two, front_line_one, front_line_two]
+        support_line_trenches_proximity = [support_line_west.get_proximity(), support_line_east.get_proximity()]
+        front_line_trenches_proximity = [front_line_west.get_proximity(), front_line_east.get_proximity()]
+        support_lines = [support_line_west, support_line_east]
+        trench_list = [support_line_west, support_line_east, front_line_west, front_line_east]
 
         self._initialize_waypoints()
         self._initialize_ui(trench_list)
         self._initialize_soldiers(10, support_line_trenches_proximity, support_lines)
-        self._initialize_artillery(support_line_trenches_proximity)
+        self._initialize_artillery(support_line_trenches_proximity, front_line_trenches_proximity)
 
     def _initialize_waypoints(self):
         self._field_waypoints.build()
@@ -249,7 +250,7 @@ class Game:
 
                 soldier.set_weapon(bolt_action_rifle)
 
-    def _initialize_artillery(self, support_lines_prox):
+    def _initialize_artillery(self, support_lines_prox, front_line_prox):
         spaced = 70
         height = 40
         total_artillery = self._height // spaced
@@ -261,22 +262,26 @@ class Game:
             new_x = 0
             new_y = 0
             country = None
-            friendly_support_trench_coord = None
+
+            friendly_support_trench_coord = support_lines_prox[fighting_direction.value][0]
+            friendly_front_line_coord = front_line_prox[fighting_direction.value][0]
             enemy_support_trench_coord = None
+            enemy_front_line_coord = None
 
             if fighting_direction == FightingDirection.WEST:  # left side minus x coord
                 country = self._player_country
 
-                friendly_support_trench_coord = support_lines_prox[FightingDirection.WEST.value][0]
                 enemy_support_trench_coord = support_lines_prox[FightingDirection.EAST.value][0]
+                enemy_front_line_coord = front_line_prox[FightingDirection.WEST.value][0]
 
                 new_x = friendly_support_trench_coord[0] - trench_distance
 
             elif fighting_direction == FightingDirection.EAST:  # right side add x coord
                 country = self._ai_country
 
-                friendly_support_trench_coord = support_lines_prox[FightingDirection.EAST.value][0]
                 enemy_support_trench_coord = support_lines_prox[FightingDirection.WEST.value][0]
+                enemy_front_line_coord = front_line_prox[FightingDirection.WEST.value][0]
+
                 new_x = friendly_support_trench_coord[0] + trench_distance
 
             for artillery_count in range(total_artillery):
@@ -285,7 +290,7 @@ class Game:
                 starting_pos = Coordinate(new_x, new_y)
 
                 artillery = Artillery(starting_pos, 50, 20, 10, 10, 100,
-                                      friendly_support_trench_coord, enemy_support_trench_coord,
+                                      friendly_support_trench_coord, enemy_support_trench_coord, friendly_front_line_coord, enemy_front_line_coord,
                                       self._weapon_group, self._field_waypoints, country)
 
                 gunner = Gunner(starting_pos, 0, 0, self._field_waypoints, country, self._npc_group)
