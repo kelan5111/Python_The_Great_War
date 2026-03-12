@@ -17,6 +17,8 @@ class Weapon(Actor):
         self._shot_chance = 0
         self._ammo_capacity = ammo_capacity
 
+        self._timer = Timer()
+
         self._active_projectile = []
         self._owner = None
         self._country = None
@@ -55,12 +57,10 @@ class Weapon(Actor):
 
             self._world_coord = Coordinate(new_x, new_y)
 
+    @abstractmethod
     def _update_projectile(self):
         for p in self._active_projectile:
             p.update()
-
-            if p.is_finished():
-                self._active_projectile.remove(p)
 
     def set_owner(self, owner):
         self._owner = owner
@@ -109,7 +109,7 @@ class Artillery(Weapon):
         start_x = self._world_coord.get_x()
         start_y = self._world_coord.get_y()
 
-        shell = Projectile(Coordinate(start_x, start_y), target_coord, 5)
+        shell = Shell(Coordinate(start_x, start_y), target_coord, speed=5, blast_factor=4)
         self._active_projectile.append(shell)
 
     def _fire_random_projectile(self):
@@ -150,6 +150,16 @@ class Artillery(Weapon):
 
         return Coordinate(self._shot_x, self._shot_y)
 
+    def _update_projectile(self):
+        super()._update_projectile()
+
+        for shell in self._active_projectile:
+            if shell.has_exploded():
+                if self._timer.is_finished(5):  # wait 5 seconds until deletion
+                    self._active_projectile.remove(shell)
+
+                    self._timer.reset()
+
     def add_soldier(self, soldier):
         if isinstance(soldier, Gunners):  # soldiers must be Gunners (special force)
             self._gunners.append(soldier)
@@ -181,6 +191,13 @@ class Gun(Weapon):
             self._magazine_capacity -= 1
             target.kill()
 
+    def _update_projectile(self):
+        super()._update_projectile()
+
+        # delete bullet after it has hit a target
+        [self._active_projectile.remove(projectile) for projectile in self._active_projectile
+         if projectile.has_hit()]
+
     def reload(self):
         pass
 
@@ -190,30 +207,29 @@ class Projectile:
         self._radius = 10
         self._colour = (0, 0, 0)
         self._speed = speed
-
         self._world_coord = start_coord
         self._target_coord = target_coord
 
-        self._finished = False
+        self._hit = False
 
     def draw(self, screen, camera):
         screen_coord = camera.translate_coord(self._world_coord.get_coord())
 
-        if not self._finished:
+        if not self._hit:
             pygame.draw.circle(screen, self._colour, screen_coord, self._radius)
 
     def update(self):
         self._move()
 
     def _move(self):
-        if self._target_coord is not None:
+        if not self._hit:
 
             next_coord = self._calc_next_move(self._target_coord)
 
             self._world_coord = next_coord
 
-            if self._world_coord.calculate_distance(self._target_coord) < 10:
-                self._finished = True
+            if self._world_coord.calculate_distance(self._target_coord) < self._radius:
+                self._hit = True
 
     def _calc_next_move(self, target_coord):
         step = 1
@@ -234,5 +250,28 @@ class Projectile:
 
         return Coordinate(new_x, new_y)
 
-    def is_finished(self):
-        return self._finished
+    def has_hit(self):
+        return self._hit
+
+
+class Shell(Projectile):
+    def __init__(self, start_coord, target_coord, speed, blast_factor):
+        super().__init__(start_coord, target_coord, speed)
+
+        self._blast_radius = self._radius * blast_factor
+        self._debug = True
+        self._exploded = False
+
+    def draw(self, screen, camera):
+        super().draw(screen, camera)
+
+        if self._debug and self.has_hit():
+            self._exploded = True
+
+            screen_coord = camera.translate_coord(self._world_coord.get_coord())
+
+            pygame.draw.circle(screen, self._colour, screen_coord,
+                               self._blast_radius, width=4)
+
+    def has_exploded(self):
+        return self._exploded
