@@ -45,7 +45,7 @@ class Coordinate:
     def set_y(self, y):
         self._y = y
 
-    def calc_center(self, width, height):
+    def get_center(self, width, height):
         return self._x + width / 2, self._y + height / 2
 
     def equals(self, other):

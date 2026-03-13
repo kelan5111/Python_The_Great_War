@@ -10,9 +10,9 @@ import random
 class NPC(Actor):
     ID = 0
     SPEED = 0.5
-    SIZE = 20
+    SIZE = 15
 
-    def __init__(self, coord, width, height, waypoint_graph, country, group):
+    def __init__(self, coord, width, height, waypoint_graph, country, group, morale_bar):
         super().__init__(coord, width, height, group)
         self._width = NPC.SIZE
         self._height = NPC.SIZE
@@ -25,6 +25,9 @@ class NPC(Actor):
 
         self._speed = NPC.SPEED
         self._actors = group.get_actors()
+
+        self._morale = 100
+        self._morale_bar = morale_bar
 
         self._engaged = False
         self._moving = False
@@ -54,6 +57,7 @@ class NPC(Actor):
     def act(self, mouse_pos):
         self._execute_idle_movement()
         self._execute_player_movement()
+        self._check_hover(mouse_pos)
 
     def _execute_idle_movement(self):
         if self._idle and not self._moving:
@@ -138,6 +142,12 @@ class NPC(Actor):
     def _attack(self):
         pass
 
+    def _check_hover(self, mouse_pos):
+        if self.has_collided(mouse_pos):
+            self._morale_bar.set_show(True)
+        else:
+            self._morale_bar.set_show(False)
+
     def _update_rect(self, coord):
         self._world_coord = coord
         self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
@@ -157,10 +167,19 @@ class NPC(Actor):
     def is_idle(self):
         return self._idle
 
+    def get_morale(self):
+        return self._morale
+
+    def show_morale(self):
+        self._morale_bar.set_show(True)
+
+    def hide_morale(self):
+        self._morale_bar.set_show(False)
+
 
 class Soldier(NPC):
-    def __init__(self, coord, width, height, curr_waypoint_graph, country, group, weapon=None):
-        super().__init__(coord, width, height, curr_waypoint_graph, country, group)
+    def __init__(self, coord, width, height, curr_waypoint_graph, country, group, morale_bar, weapon=None):
+        super().__init__(coord, width, height, curr_waypoint_graph, country, group, morale_bar)
 
         self._country = country
         self._regiment_colour = self._colour
@@ -236,8 +255,8 @@ class Soldier(NPC):
 
 
 class SpecialForces(Soldier):
-    def __init__(self, coord, width, height, curr_waypoint_graph, country, group):
-        super().__init__(coord, width, height, curr_waypoint_graph, country, group)
+    def __init__(self, coord, width, height, curr_waypoint_graph, country, group, morale_bar):
+        super().__init__(coord, width, height, curr_waypoint_graph, country, group, morale_bar)
 
         self._skill_lvl = 0
 
@@ -246,8 +265,8 @@ class SpecialForces(Soldier):
 
 
 class Gunner(SpecialForces):
-    def __init__(self, coord, width, height, curr_waypoint_graph, country, group):
-        super().__init__(coord, width, height, curr_waypoint_graph, country, group)
+    def __init__(self, coord, width, height, curr_waypoint_graph, country, group, morale_bar):
+        super().__init__(coord, width, height, curr_waypoint_graph, country, group, morale_bar)
 
         self._regiment_colour = (0, 0, 153)
         self._world_coord = coord

@@ -116,7 +116,7 @@ class Button(UserInterface):
     def _update_rect(self):
         self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
         self._text_font = pygame.font.SysFont("verdana", self._text_size).render(self._text, True,
-                                                                                   self._text_colour)
+                                                                                 self._text_colour)
 
     def _check_pressed(self):
         if self._select:
@@ -196,7 +196,7 @@ class InteractiveTab(UserInterface):
 class TextBox(UserInterface):
     SIDEBAR = '|'
 
-    def __init__(self, coord, width, height, group, colour, prompt_message):
+    def __init__(self, coord, width, height, group, colour, prompt_message, npc_list):
         super().__init__(coord, width, height, group)
 
         self._body_rect = pygame.Rect(coord.get_coord(), (width, height))
@@ -274,15 +274,17 @@ class TextBox(UserInterface):
 
 
 class Console(TextBox):
-    def __init__(self, coord, width, height, group, colour, prompt_symbol, field_waypoints, trench_list):
-        super().__init__(coord, width, height, group, colour, prompt_symbol)
+    def __init__(self, coord, width, height, group, colour, prompt_symbol, field_waypoints, trench_list, npc_list):
+        super().__init__(coord, width, height, group, colour, prompt_symbol, npc_list)
 
         self._commands = {
             "debug_trenches = true": lambda: [t.set_debug(True) for t in trench_list],
             "debug_field = true": lambda: field_waypoints.set_debug(True),
             "debug_trenches = false": lambda: [t.set_debug(False) for t in trench_list],
             "debug_field = false": lambda: field_waypoints.set_debug(False),
-            "remove_all_soldiers": lambda: group.remove_all(npc.Soldier)
+            "remove_all_soldiers": lambda: group.remove_all(npc.Soldier),
+            "debug_morale = true": lambda: [n.show_morale() for n in npc_list.get_actors()],
+            "debug_morale = false": lambda: [n.hide_morale() for n in npc_list.get_actors()]
         }
         self._colour = colour
 
@@ -296,3 +298,72 @@ class Console(TextBox):
 
         self._clear_text()
 
+
+class HUI(UserInterface):
+    def __init__(self, text, colour, coord, width, height, group):
+        super().__init__(coord, width, height, group)
+
+        self._npc = None
+        self._colour = colour
+        self._outline_colour = (0, 0, 0)
+
+        self._text = text
+        self._font = pygame.font.SysFont("verdana", 5)  # load once
+        self._text_font = self._font.render(self._text, True, (0, 0, 0))
+        self._text_rect = self._text_font.get_rect()
+
+    def act(self, mouse_pos):
+        self._update_rect()
+
+    def _update_rect(self):
+        new_coord = self._world_coord.get_coord()
+        self._rect = pygame.Rect(new_coord, (self._width, self._height))
+
+    def _update_text(self, text):
+        self._text = text
+        self._text_font = (pygame.font.SysFont("verdana", 5).
+                           render(text, True, (0, 0, 0)))
+
+
+class MoraleBar(HUI):
+    def __init__(self, text, colour, coord, width, height, group):
+        super().__init__(text, colour, coord, width, height, group)
+
+        self._npc_morale = 0
+        self._morale_bar_rect = pygame.Rect(coord.get_coord(), (self._npc_morale, self._height))
+
+    def act(self, mouse_pos):
+        super().act(mouse_pos)
+
+        self._update_morale()
+        self._lock_to_npc()
+
+    def draw(self, screen, camera):
+        if self._show:
+            screen_rect = camera.translate_rect(self._morale_bar_rect)
+
+            pygame.draw.rect(screen, self._colour, screen_rect)
+            pygame.draw.rect(screen, self._outline_colour, screen_rect, 2)
+
+    def _update_morale(self):
+        if not self._show:
+            return
+
+        self._npc_morale = self._npc.get_morale()
+        self._morale_bar_rect = pygame.Rect(self._world_coord.get_coord(),
+                                            (self._npc_morale, self._height))
+
+    def _lock_to_npc(self):
+        if not self._show:
+            return
+
+        npc_center_x = self._npc.get_rect().centerx
+        npc_center_y = self._npc.get_rect().centery
+
+        new_x = npc_center_x - self._width // 2
+        new_y = (npc_center_y - self._height // 2) - self._height * 2
+
+        self._world_coord = Coordinate(new_x, new_y)
+
+    def set_npc(self, n):
+        self._npc = n
