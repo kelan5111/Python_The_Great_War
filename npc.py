@@ -23,11 +23,14 @@ class NPC(Actor):
         self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
         self._ID = NPC.ID + 1
 
+        self._timer = Timer()
+
         self._speed = NPC.SPEED
         self._actors = group.get_actors()
 
         self._morale = 100
         self._morale_bar = morale_bar
+        self._show_morale_bar = False
 
         self._engaged = False
         self._moving = False
@@ -57,7 +60,6 @@ class NPC(Actor):
     def act(self, mouse_pos):
         self._execute_idle_movement()
         self._execute_player_movement()
-        self._check_hover(mouse_pos)
 
     def _execute_idle_movement(self):
         if self._idle and not self._moving:
@@ -142,12 +144,6 @@ class NPC(Actor):
     def _attack(self):
         pass
 
-    def _check_hover(self, mouse_pos):
-        if self.has_collided(mouse_pos):
-            self._morale_bar.set_show(True)
-        else:
-            self._morale_bar.set_show(False)
-
     def _update_rect(self, coord):
         self._world_coord = coord
         self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
@@ -167,14 +163,25 @@ class NPC(Actor):
     def is_idle(self):
         return self._idle
 
+    def show_moral_bar(self):
+        self._morale_bar.set_show(True)
+
+    def hide_moral_bar(self):
+        self._morale_bar.set_show(False)
+
+    def set_morale(self, morale):
+        self._morale = morale
+
     def get_morale(self):
         return self._morale
 
-    def show_morale(self):
-        self._morale_bar.set_show(True)
+    def set_select(self, select):
+        if select:
+            self.show_moral_bar()
+        elif not select:
+            self.hide_moral_bar()
 
-    def hide_morale(self):
-        self._morale_bar.set_show(False)
+        self._select = select
 
 
 class Soldier(NPC):
@@ -186,6 +193,7 @@ class Soldier(NPC):
         self._weapon = weapon
         self._enemy_lock = None
         self._shot_chance = 100
+        self._shell_shocked = False
 
     def __str__(self):
         return f"Soldier: {self._ID}, Country: {self._country}, Waypoint: {self._curr_waypoint}"
@@ -193,8 +201,9 @@ class Soldier(NPC):
     def act(self, mouse_pos):
         super().act(mouse_pos)
 
-        if not self._idle:
-            self._detect_enemies()
+        self._detect_enemies()
+
+        self._monitor_shell_shocked()
 
     def kill(self):
         self._alive = False
@@ -202,19 +211,22 @@ class Soldier(NPC):
             self._weapon.kill()
         self._remove_weapon()
 
-    def _detect_enemies(self):
-        for actor in self._actors:
-            if isinstance(actor, Soldier):
-                if actor.get_country() != self._country:
-                    enemy = self._is_enemy_near(actor)
+        self._morale_bar.kill()
 
-                    if enemy is not None:  # Enemy is near, stop moving and engage
-                        self._engaged = True
-                        self._enemy_lock = enemy
-                        self._attack()
-                    else:  # No enemy is in sight act normal
-                        self._engaged = False
-                        self._enemy_lock = None
+    def _detect_enemies(self):
+        if not self._idle:
+            for actor in self._actors:
+                if isinstance(actor, Soldier):
+                    if actor.get_country() != self._country:
+                        enemy = self._is_enemy_near(actor)
+
+                        if enemy is not None:  # Enemy is near, stop moving and engage
+                            self._engaged = True
+                            self._enemy_lock = enemy
+                            self._attack()
+                        else:  # No enemy is in sight act normal
+                            self._engaged = False
+                            self._enemy_lock = None
 
     def _attack(self):
         if self.has_weapon():
@@ -237,6 +249,14 @@ class Soldier(NPC):
 
         return False
 
+    def set_select(self, select):
+        if select:
+            self.show_moral_bar()
+        elif not select and not self._shell_shocked:
+            self.hide_moral_bar()
+
+        self._select = select
+
     def set_weapon(self, weapon):
         weapon.set_owner(self)
         self._weapon = weapon
@@ -252,6 +272,24 @@ class Soldier(NPC):
 
     def get_shot_chance(self):
         return self._shot_chance
+
+    def set_shell_shocked(self, shell_shocked):
+        self._shell_shocked = shell_shocked
+
+    def _monitor_shell_shocked(self):
+        if self._shell_shocked:
+            self._morale_bar.set_show(True)
+
+            if not self._timer.is_started():
+                self._timer.start()
+
+            if self._timer.is_finished(5):
+                self._shell_shocked = False
+                self._morale_bar.set_show(False)
+                self._timer.reset()
+
+    def is_shell_shocked(self):
+        return self._shell_shocked
 
 
 class SpecialForces(Soldier):

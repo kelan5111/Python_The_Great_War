@@ -1,3 +1,5 @@
+import enum
+
 import pygame
 import random
 from abc import ABC, abstractmethod
@@ -29,14 +31,11 @@ class Weapon(Actor):
     def draw(self, screen, camera):
         screen_rect = camera.translate_rect(self._rect)
         pygame.draw.rect(screen, self._colour, screen_rect)
-        # Draw bullets
-        if len(self._active_projectile) > 0:
-            for projectile in self._active_projectile:
-                projectile.draw(screen, camera)
+
+        self._update_projectile(screen, camera)
 
     def act(self, *args):
         self._update_rect()
-        self._update_projectile()
 
     @abstractmethod
     def shoot(self, target_coord, npc_list):
@@ -50,9 +49,9 @@ class Weapon(Actor):
         self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
 
     @abstractmethod
-    def _update_projectile(self):
+    def _update_projectile(self, screen, camera):
         for p in self._active_projectile:
-            p.update()
+            p.update(screen, camera)
 
     def set_owner(self, owner):
         self._owner = owner
@@ -100,16 +99,17 @@ class Artillery(Weapon):
             start_x = self._world_coord.get_x()
             start_y = self._world_coord.get_y()
 
-            shell = Shell(Coordinate(start_x, start_y), target_coord, speed=5, blast_factor=10, npc_list=npc_list)
+            shell = Shell(Coordinate(start_x, start_y), target_coord, speed=5, blast_factor=5, npc_list=npc_list)
             self._active_projectile.append(shell)
 
     def shoot_random_projectile(self, npc_list):
         if len(self._gunners) > 0:
+            if not self._timer.is_started():
+                self._timer.start()
+
             if self._timer.is_finished(10):
                 self._barrage_coord = self._calc_projectile_shot()
-
                 self.shoot(self._barrage_coord, npc_list)
-
                 self._timer.reset()
 
     def reload(self):
@@ -141,12 +141,13 @@ class Artillery(Weapon):
 
         return Coordinate(self._shot_x, self._shot_y)
 
-    def _update_projectile(self):
-        super()._update_projectile()
+    def _update_projectile(self, screen, camera):
+        super()._update_projectile(screen, camera)
 
         for shell in self._active_projectile:
             if shell.has_exploded():
-                self._active_projectile.remove(shell)
+                if shell.has_exploded():
+                    self._active_projectile.remove(shell)
 
     def add_soldier(self, soldier):
         self._gunners.append(soldier)
@@ -178,7 +179,7 @@ class Gun(Weapon):
             self._active_projectile.append(bullet)
             self._magazine_capacity -= 1
 
-    def _update_projectile(self):
+    def _update_projectile(self, screen, camera):
         hits = [projectile for projectile in self._active_projectile
                 if projectile.has_hit()]
 
@@ -210,17 +211,13 @@ class Projectile:
 
         self._mute_sounds = False
         self._hit = False
+        self._alive = True
         self._targets_hit = []
 
-    def draw(self, screen, camera):
-        screen_coord = camera.translate_coord(self._world_coord.get_coord())
-
-        if not self._hit:
-            pygame.draw.circle(screen, self._colour, screen_coord, self._radius)
-
-    def update(self):
-        self._move()
-        self._check_targets_hit()
+    def update(self, screen, screen_coord):
+        if self._alive:
+            self._move()
+            self._check_targets_hit()
 
     def _move(self):
         if not self._hit:
@@ -251,14 +248,13 @@ class Projectile:
 
         return Coordinate(new_x, new_y)
 
+    @abstractmethod
     def _check_targets_hit(self):
-        if self._hit:
-            for npc in self._npc_list:
-                npc_coord = npc.get_coord()
-                distance_from_projectile = npc_coord.calculate_distance(self._world_coord.get_coord())
+        pass
 
-                if distance_from_projectile <= self._radius:
-                    npc.kill()
+    @abstractmethod
+    def _check_targets_miss(self, npc, distance_from_projectile):
+        pass
 
     def has_hit(self):
         return self._hit
@@ -268,60 +264,129 @@ class Bullet(Projectile):
     def __init__(self, start_coord, target_coord, speed, npc_list):
         super().__init__(start_coord, target_coord, speed, npc_list)
 
+    def draw(self, screen, camera):
+        pass
+
     def _check_targets_hit(self):
+        pass
+
+    def _check_targets_miss(self, npc, distance_from_projectile):
         pass
 
 
 class Shell(Projectile):
+    HIGH_FACTOR_BLAST = 8
+    MID_FACTOR_BLAST = 4
+    LOW_FACTOR_BLAST = 2
+
     def __init__(self, start_coord, target_coord, speed, blast_factor, npc_list):
         super().__init__(start_coord, target_coord, speed, npc_list)
 
         self._blast_radius = self._radius * blast_factor
-        self._debug = True
+
         self._exploded = False
+        self._incoming_blast = False
+        self._played_incoming_sound = False
+
+        self._nearby_soldiers = []
 
         self._explosion_sound = pygame.mixer.Sound("assets/audio/artillery_explosion.wav")
         self._incoming_sound = pygame.mixer.Sound("assets/audio/incoming_explosion.wav")
         self._timer = Timer()
 
-    def draw(self, screen, camera):
-        super().draw(screen, camera)
+    def update(self, screen, camera):
+        super().update(screen, camera)
 
-        if self._debug and self.has_hit():
+        self._monitor_events(screen, camera)
 
-            screen_coord = camera.translate_coord(self._world_coord.get_coord())
+    def _move(self):
+        if not self._hit:
+            next_coord = self._calc_next_move(self._target_coord)
+            self._world_coord = next_coord
 
+            distance_from_target = self._world_coord.calculate_distance(self._target_coord)
+            incoming_sound_length = self._incoming_sound.get_length()
+
+            if self._radius < distance_from_target < self._blast_radius * Shell.HIGH_FACTOR_BLAST:
+                self._incoming_blast = True
+
+            if distance_from_target < self._radius:
+                self._hit = True
+
+    def _monitor_events(self, screen, camera):
+        screen_coord = camera.translate_coord(self._world_coord.get_coord())
+
+        self._monitor_incoming_blast(screen, screen_coord)
+        self._monitor_hit(screen, screen_coord)
+        self._monitor_explosion(screen, screen_coord)
+
+    def _monitor_incoming_blast(self, screen, screen_coord):
+        if self._incoming_blast:
+            self._check_soldier_nearby()
+
+            incoming_sound_length = self._incoming_sound.get_length()
+            # Draw the shell circle
+            pygame.draw.circle(screen, self._colour, screen_coord, self._radius)
+
+            print("Incoming...")
+
+            if (len(self._nearby_soldiers) > 0 and
+                    not self._played_incoming_sound):
+                self._incoming_sound.play()
+                self._played_incoming_sound = True
+
+    def _check_soldier_nearby(self):
+        for soldier in self._npc_list:
+            soldier_coord = soldier.get_coord()
+            distance_from_target = soldier_coord.calculate_distance(self._target_coord)
+
+            if distance_from_target < self._blast_radius * 4:
+                self._nearby_soldiers.append(soldier)
+
+    def _monitor_hit(self, screen, screen_coord):
+        if self._hit:
+            self._incoming_blast = False
+            self._check_npc_deaths()
+            self._explosion_sound.play()
+            self._exploded = True
+
+    def _monitor_explosion(self, screen, screen_coord):
+        if self._exploded:
             pygame.draw.circle(screen, self._colour, screen_coord,
                                self._blast_radius, width=4)
+            self._hit = False
 
-    def update(self):
-        super().update()
+            if not self._timer.is_started():
+                self._timer.start()
 
-        self._execute_incoming_sound()
+            if self._timer.is_finished(self._explosion_sound.get_length()):
+                print("Exploded...")
+                self._alive = False
 
-    def _check_targets_hit(self):
-        self._execute_incoming_sound()
+    def _check_npc_deaths(self):
+        if len(self._nearby_soldiers) > 0:
+            [soldier.kill() for soldier in self._nearby_soldiers]
 
-        if self._hit:
-            for npc in self._npc_list:
+            self._calc_shell_shock()
+
+    def _calc_shell_shock(self):
+        for npc in self._npc_list:
+            if npc.is_alive():
                 npc_coord = npc.get_coord()
-                distance_from_blast = npc_coord.calculate_distance(self._world_coord.get_coord())
+                distance_from_blast = (npc_coord.calculate_distance(self._target_coord))
+                new_moral = npc.get_morale()
 
-                if distance_from_blast <= self._blast_radius:
-                    npc.kill()
+                if distance_from_blast <= self._blast_radius * Shell.HIGH_FACTOR_BLAST:
+                    new_moral -= MoraleLoss.HIGH.value
 
-            if self._timer.is_finished(self._incoming_sound.get_length() * 1.5):
-                self._explosion_sound.play()
+                elif distance_from_blast <= self._blast_radius * Shell.MID_FACTOR_BLAST:
+                    new_moral -= MoraleLoss.MEDIUM.value
 
-            if self._timer.is_finished(self._explosion_sound.get_length() * 7):
-                self._exploded = True
+                elif distance_from_blast <= self._blast_radius * Shell.LOW_FACTOR_BLAST:
+                    new_moral -= MoraleLoss.LOW.value
 
-    def _execute_incoming_sound(self):
-        distance_from_explosion = self._world_coord.calculate_distance(self._target_coord)
-
-        if (self._blast_radius < distance_from_explosion < self._blast_radius * 2
-                and not self._mute_sounds):
-            self._incoming_sound.play()
+                npc.set_shell_shocked(True)
+                npc.set_morale(new_moral)
 
     def get_sounds(self):
         return self._incoming_sound, self._explosion_sound
@@ -331,3 +396,9 @@ class Shell(Projectile):
 
     def set_mute_sounds(self, mute_sounds):
         self._mute_sounds = mute_sounds
+
+
+class MoraleLoss(enum.Enum):
+    LOW = 5
+    MEDIUM = 10
+    HIGH = 20

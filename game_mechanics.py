@@ -205,20 +205,30 @@ class Camera:
 class Timer:
     def __init__(self):
         self._start_time = 0
-
-        self.start()
-
-    def __str__(self):
-        return f"Timer: {self._start_time}"
+        self._started = False
 
     def start(self):
         self._start_time = pygame.time.get_ticks()
+        self._started = True
+
+    def stop(self):
+        self._start_time = 0
+        self._started = False
 
     def _elapsed(self):
         return pygame.time.get_ticks() - self._start_time
 
+    def get_time(self):
+        return pygame.time.get_ticks() - self._start_time
+
     def is_finished(self, length_secs):
+        if not self._started:
+            return False
         return self._elapsed() >= length_secs * 1000
 
     def reset(self):
         self._start_time = pygame.time.get_ticks()
+        self._started = True
+
+    def is_started(self):
+        return self._started

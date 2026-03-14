@@ -316,8 +316,7 @@ class HUI(UserInterface):
         self._update_rect()
 
     def _update_rect(self):
-        new_coord = self._world_coord.get_coord()
-        self._rect = pygame.Rect(new_coord, (self._width, self._height))
+        self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
 
     def _update_text(self, text):
         self._text = text
@@ -341,22 +340,16 @@ class MoraleBar(HUI):
     def draw(self, screen, camera):
         if self._show:
             screen_rect = camera.translate_rect(self._morale_bar_rect)
-
             pygame.draw.rect(screen, self._colour, screen_rect)
             pygame.draw.rect(screen, self._outline_colour, screen_rect, 2)
 
     def _update_morale(self):
-        if not self._show:
-            return
-
         self._npc_morale = self._npc.get_morale()
+
         self._morale_bar_rect = pygame.Rect(self._world_coord.get_coord(),
                                             (self._npc_morale, self._height))
 
     def _lock_to_npc(self):
-        if not self._show:
-            return
-
         npc_center_x = self._npc.get_rect().centerx
         npc_center_y = self._npc.get_rect().centery
 

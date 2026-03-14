@@ -143,11 +143,11 @@ class Game:
                 if select_box.is_pressed():
                     select_box.end_drag(self._npc_group.get_actors())
 
-                for actor in self._npc_group.get_actors():
-                    if isinstance(actor, NPC):
-                        if (actor.get_country() == self._player_country and
-                                actor.has_collided(mouse_pos)):
-                            actor.set_select(True)
+                for npc in self._npc_group.get_actors():
+                    if isinstance(npc, NPC):
+                        if (npc.get_country() == self._player_country and
+                                npc.has_collided(mouse_pos)):
+                            npc.set_select(True)
 
                 morale_bar = [actor for actor in self._ui_group.get_actors() if isinstance(actor, MoraleBar)]
 
@@ -157,11 +157,11 @@ class Game:
 
             # Any soldier is selected they will move to mouse pos
             if event.button == 3:
-                for actor in self._npc_group.get_actors():
-                    if isinstance(actor, Soldier):
-                        if actor.has_selected() and not actor.is_idle():
-                            actor.set_path(mouse_pos)
-                            actor.set_select(False)
+                for npc in self._npc_group.get_actors():
+                    if isinstance(npc, Soldier):
+                        if npc.has_selected() and not npc.is_idle():
+                            npc.set_path(mouse_pos)
+                            npc.set_select(False)
 
                             # options = (trench for trench in self._group.find(Trench) if trench.has_hover())
                             # selected_trench = next(options, None)
@@ -172,9 +172,6 @@ class Game:
                                 actor.set_idle(True)'''
 
                     # Unselect Trench once selected
-                    elif isinstance(actor, Trench):
-                        if actor.has_hover():
-                            actor.set_select(False)
 
         if event.type == pygame.MOUSEBUTTONDOWN:
             console = self._ui_group.find(Console)
