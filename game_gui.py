@@ -136,16 +136,41 @@ class Button(UserInterface):
 
 
 class Icon(UserInterface):
-    def __init__(self, coord, width, height, group, image_path):
+    def __init__(self, coord, width, height, group, text, image_path):
         super().__init__(coord, width, height, group)
 
-        self._image = image_path
+        self._image = pygame.image.load(image_path)
+        self._image_rect = self._image.get_rect()
 
-    def draw(self, screen, camera=None):
+        self._text = text
+        self._text_size = 20
+        self._font = pygame.font.SysFont("verdana", self._text_size)
+        self._text_font = self._font.render(self._text, True, (0, 0, 0))
+        self._text_rect = self._text_font.get_rect()
+
+    def draw(self, screen, camera):
+        screen_rect = camera.translate_rect(self._image_rect)
+
+        screen_rect_x = screen_rect.centerx
+        screen_rect_y = screen_rect.centery
+
+        screen.blit(self._image, screen_rect)
+
+        self._text_rect.x = screen_rect_x + self._image_rect.width
+        self._text_rect.y = screen_rect_y - self._height
+
+        screen.blit(self._text_font, self._text_rect)
+
+    def act(self, mouse_pos):
         pass
 
-    def act(self):
-        pass
+    def resize(self, width, height):
+        self._image = pygame.transform.scale(self._image, (width, height))
+        self._image_rect = self._image.get_rect()
+
+    def set_text_size(self, text_size):
+        self._text_size = text_size
+        self._font = pygame.font.SysFont("verdana", self._text_size)
 
     def has_collided(self, other):
         pass
@@ -164,30 +189,20 @@ class InteractiveTab(UserInterface):
 
     def draw(self, screen, camera):
         pygame.draw.rect(screen, self._colour, self._rect)
-        # Drawing the sections
-        for ui in self._sections:
-            ui.draw(screen, camera)
 
     def act(self, mouse_pos):
-        for ui in self._sections:
-            ui.update()
+        pass
 
-    def add_icon(self, ui):
+    def add_icon(self, icon):
         if self._num_sections > self._max_sections:
             print("Unable to add the icon.")
             return
 
-        self._resize_ui(ui)
+        icon.resize(50, self._height)
+        icon.set_text_size(10)
+
         self._num_sections += 1
-        self._sections.append(ui)
-
-    def _resize_ui(self, ui):
-        new_x = self._num_sections * self._section_spaced
-        new_y = new_x
-
-        ui.set_coord(new_x, new_y)
-        ui.set_diameters(self._width, self._width)
-        ui.set_text_size(2)
+        self._sections.append(icon)
 
     def get_sections(self):
         return self._sections

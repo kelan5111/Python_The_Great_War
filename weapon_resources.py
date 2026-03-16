@@ -95,12 +95,13 @@ class Artillery(Weapon):
         super().act()
 
     def shoot(self, target_coord, npc_list):
-        if len(self._gunners) > 0:
+        if len(self._gunners) > 0 and self._shell_supply > 0:
             start_x = self._world_coord.get_x()
             start_y = self._world_coord.get_y()
 
             shell = Shell(Coordinate(start_x, start_y), target_coord, speed=5, blast_factor=5, npc_list=npc_list)
             self._active_projectile.append(shell)
+            self._shell_supply -= 1
 
     def shoot_random_projectile(self, npc_list):
         if len(self._gunners) > 0:
@@ -346,6 +347,7 @@ class Shell(Projectile):
     def _monitor_hit(self, screen, screen_coord):
         if self._hit:
             self._incoming_blast = False
+            self._calc_shell_shock()
             self._check_npc_deaths()
             self._explosion_sound.play()
             self._exploded = True
@@ -365,9 +367,12 @@ class Shell(Projectile):
 
     def _check_npc_deaths(self):
         if len(self._nearby_soldiers) > 0:
-            [soldier.kill() for soldier in self._nearby_soldiers]
+            for s in self._nearby_soldiers:
+                s_coord = s.get_coord()
+                distance_from_explosion = s_coord.calculate_distance(self._target_coord)
 
-            self._calc_shell_shock()
+                if distance_from_explosion < self._blast_radius:
+                    s.kill()
 
     def _calc_shell_shock(self):
         for npc in self._npc_list:
@@ -399,6 +404,6 @@ class Shell(Projectile):
 
 
 class MoraleLoss(enum.Enum):
-    LOW = 5
-    MEDIUM = 10
-    HIGH = 20
+    LOW = 1
+    MEDIUM = 2
+    HIGH = 3

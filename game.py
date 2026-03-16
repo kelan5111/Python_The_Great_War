@@ -7,8 +7,8 @@ from npc import Soldier, Country, FightingDirection, Gunner, NPC
 from weapon_resources import Gun, Artillery
 from game_mechanics import (NPCGroup, WeaponGroup, ParticleGroup, UIGroup,
                             Timer, Camera, ParticleGroup, EnvironmentGroup)
-from game_gui import SelectBox, Button, InteractiveTab, Console, MoraleBar
-from trench import FrontLineTrench, SupportTrench, Trench
+from game_gui import SelectBox, Button, InteractiveTab, Console, MoraleBar, Icon
+from trench import FrontLineTrench, SupportTrench, Trench, CommunicationTrench
 
 
 class Game:
@@ -93,7 +93,10 @@ class Game:
 
         interactive_tab = InteractiveTab(Coordinate(0, 0), self._width, 40, self._ui_group)
 
-        npc_list = self._npc_group.get_actors()
+        morale_icon_image_path = "assets/images/morale_icon.png"
+        morale_icon = Icon(Coordinate(0, 0), 0, 0, self._ui_group, "morale", morale_icon_image_path)
+
+        interactive_tab.add_icon(morale_icon)
 
     def _initialize(self):
         pygame.display.set_caption('The Great War')
@@ -103,23 +106,8 @@ class Game:
 
         self._interactive_tab.add_icon(button_one)'''
 
-        front_line_west = FrontLineTrench(Coordinate(150, 0), 50, self._height, 10, self._player_country,
-                                          self._ground_colour,
-                                          self._environment_group)
-        support_line_west = SupportTrench(Coordinate(50, 0), 50, self._height, 50, self._player_country,
-                                          self._ground_colour,
-                                          self._environment_group)
-        front_line_east = FrontLineTrench(Coordinate(self._width - 200, 0), 50, self._height, 10, Country.GERMANY,
-                                          self._ground_colour, self._environment_group)
-        support_line_east = SupportTrench(Coordinate(self._width - 100, 0), 50, self._height, 50, Country.GERMANY,
-                                          self._ground_colour, self._environment_group)
-
-        support_line_trenches_proximity = [support_line_west.get_proximity(), support_line_east.get_proximity()]
-        front_line_trenches_proximity = [front_line_west.get_proximity(), front_line_east.get_proximity()]
-        support_lines = [support_line_west, support_line_east]
-        trench_list = [support_line_west, support_line_east, front_line_west, front_line_east]
-
         self._initialize_waypoints()
+        trench_list, support_lines, support_line_trenches_proximity, front_line_trenches_proximity = self._initialize_trenches()
         self._initialize_ui(trench_list)
         self._initialize_soldiers(10, support_line_trenches_proximity, support_lines)
         self._initialize_artillery(support_line_trenches_proximity, front_line_trenches_proximity)
@@ -291,7 +279,7 @@ class Game:
 
                 starting_pos = Coordinate(new_x, new_y)
 
-                artillery = Artillery(starting_pos, 50, 20, 10, 10, 100,
+                artillery = Artillery(starting_pos, 50, 20, 10, 10, 5,
                                       friendly_support_trench_coord, enemy_support_trench_coord,
                                       friendly_front_line_coord, enemy_front_line_coord,
                                       self._weapon_group, self._field_waypoints, country)
@@ -303,3 +291,26 @@ class Game:
                 gunner.set_weapon(artillery)
 
                 artillery.add_soldier(gunner)
+
+    def _initialize_trenches(self):
+        front_line_west = FrontLineTrench(Coordinate(400, 0), 50, self._height, 10, self._player_country,
+                                          self._ground_colour, self._npc_group.get_actors(), self._environment_group)
+        support_line_west = SupportTrench(Coordinate(100, 0), 50, self._height, 50, self._player_country,
+                                          self._ground_colour, self._npc_group.get_actors(), self._environment_group)
+        communication_trench_west = CommunicationTrench(support_line_west, front_line_west, 0, Country.BRITAIN,
+                                                   self._ground_colour, self._npc_group.get_actors(), self._environment_group)
+
+        front_line_east = FrontLineTrench(Coordinate(self._width - 400, 0), 50, self._height, 10, Country.GERMANY,
+                                          self._ground_colour, self._npc_group.get_actors(), self._environment_group)
+        support_line_east = SupportTrench(Coordinate(self._width - 100, 0), 50, self._height, 50, Country.GERMANY,
+                                          self._ground_colour, self._npc_group.get_actors(), self._environment_group)
+        communication_trench_east = CommunicationTrench(support_line_east, front_line_east, 0, Country.GERMANY,
+                                                        self._ground_colour, self._npc_group.get_actors(),
+                                                        self._environment_group)
+
+        support_line_trenches_proximity = [support_line_west.get_proximity(), support_line_east.get_proximity()]
+        front_line_trenches_proximity = [front_line_west.get_proximity(), front_line_east.get_proximity()]
+        support_lines = [support_line_west, support_line_east]
+        trench_list = [support_line_west, support_line_east, front_line_west, front_line_east]
+
+        return trench_list, support_lines, support_line_trenches_proximity, front_line_trenches_proximity

@@ -13,7 +13,9 @@ class Actor(ABC):
 
         self._width = width
         self._height = height
-        self._rect = pygame.Rect(coord.get_coord(), (width, height))
+
+        if coord is not None:
+            self._rect = pygame.Rect(coord.get_coord(), (width, height))
 
         self._alive = True
         self._select = False
