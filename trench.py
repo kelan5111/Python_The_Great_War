@@ -17,6 +17,9 @@ class Trench(Actor, ABC):
 
         self._outline_colour = (207, 185, 151)
         self._ground_colour = ground_colour
+        self._total_capacity = total_capacity
+        self._country = country
+        self._fighting_direction = country.value[1]
 
         self._boarder_rect = pygame.Rect(coord.get_coord(), (self._width, height))
 
@@ -28,18 +31,12 @@ class Trench(Actor, ABC):
         self._start_line_two = self._rect.topright
         self._end_line_two = self._rect.bottomright
 
-        self._line_start_two = self._rect
-        self._line_end_two = None
-
         self._line_list = []
 
         self._waypoint_graph = Graph(self._width, height, 20)
-        self._build_waypoints()
+        self._waypoint_graph.build(self._line_x, self._line_y)
 
-        self._total_capacity = total_capacity
-        self._country = country
         self._curr_soldiers = []
-
         self._npc_list = npc_list
 
     def draw(self, screen, camera):
@@ -70,9 +67,6 @@ class Trench(Actor, ABC):
     def _update_rect(self):
         self._rect = pygame.Rect(self._coord.get_coord(), (self._width, self._height))
         self._boarder_rect = pygame.Rect(self._coord.get_coord(), (self._width, self._height))
-
-    def _build_waypoints(self):
-        self._waypoint_graph.build(self._line_x, self._line_y)
 
     def _update_curr_soldiers(self):
         for actor in self._npc_list:
@@ -137,10 +131,12 @@ class CommunicationTrench(Trench):
 
         self._from_trench = from_trench
         self._to_trench = to_trench
-        self._fighting_direction = country.value[1]
-        self._waypoint_graph = Graph()
 
         self._build()
+        self._waypoint_graph = Graph(self._width, self._height, 20)
+        self._waypoint_graph.build(self._line_x, self._line_y)
+
+        self._waypoint_graph.set_debug(True)
 
     def draw(self, screen, camera):
         for from_coord, to_coord in self._lines:
@@ -148,6 +144,8 @@ class CommunicationTrench(Trench):
             screen_to_coord = camera.translate_coord(to_coord)
 
             pygame.draw.line(screen, self._outline_colour, screen_from_coord, screen_to_coord, 2)
+
+        self._waypoint_graph.draw(screen, camera)
 
     def _build(self):
         line_start = None
@@ -171,32 +169,17 @@ class CommunicationTrench(Trench):
 
         self._calc_diameter()
 
-        '''while current_coord[0] < end_coord[0]:
-            distance = random.randint(0, 10)
-            next_x = current_coord[0] + distance
-            next_y = current_coord[1] + distance
-
-            self._lines.append((next_x, next_y))'''
-
     def _calc_diameter(self):
-        fl_trench_prox_end = self._from_trench.get_proximity()[0]
-        sl_trench_prox_start = self._to_trench.get_proximity()[0]
+        line_one_start, line_one_end = self._lines[0]
+        line_two_start, line_two_end = self._lines[1]
 
-        fl_trench_prox_end_coord = Coordinate(fl_trench_prox_end[0], fl_trench_prox_end[1])
+        left_x = min(line_one_start[0], line_one_end[0])
+        top_y = min(line_one_start[1], line_two_start[1])
 
-        self._width = int(fl_trench_prox_end_coord.calculate_distance(sl_trench_prox_start))
-        self._height = int(self._to_trench.get_height() // 2)
+        self._width = abs(line_one_start[0] - line_one_end[0])
+        self._height = 20
 
-    def _calc_line_one(self):
-        line_one = self._from_trench.get_line_one_coord()
-        line_two = self._to_trench.get_line_one_coord()
+        self._rect = pygame.Rect(left_x, top_y, self._width, self._height)
 
-        if self._fighting_direction.value == 0:
-            pass
-        elif self._fighting_direction.value == 1:
-            pass
-
-        self._width = None
-
-    def _calc_line_two(self):
-        pass
+        self._line_x = (self._rect.left, self._rect.right)
+        self._line_y = (self._rect.top, self._rect.bottom)

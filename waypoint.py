@@ -6,12 +6,12 @@ from coordinate import Coordinate
 
 class Node:
     RADIUS = 5
-    next_id = 0
+    _next_id = 1
 
     def __init__(self, coord):
         self._neighbours = []
 
-        self._ID = Node.next_id + 1
+        self._ID = Node._next_id
         self._coord = coord
         self._show = False
         self._debug_colour = (128, 255, 0)
@@ -20,7 +20,7 @@ class Node:
         self._distance = 0
         self._parent = None
 
-        Node.next_id += 1
+        Node._next_id += 1
 
     def __repr__(self):
         return f'Node ID: {self._ID}'
