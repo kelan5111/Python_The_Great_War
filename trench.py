@@ -131,12 +131,14 @@ class SupportTrench(Trench, ABC):
 
 
 class CommunicationTrench(Trench):
-    def __init__(self, from_trench, to_trench, total_capacity, country, ground_colour, npc_list, group, coord=Coordinate(0, 0), width=0, height=0):
+    def __init__(self, from_trench, to_trench, total_capacity, country, ground_colour, npc_list, group,
+                 coord=Coordinate(0, 0), width=0, height=0):
         super().__init__(coord, width, height, total_capacity, country, ground_colour, npc_list, group)
 
         self._from_trench = from_trench
         self._to_trench = to_trench
         self._fighting_direction = country.value[1]
+        self._waypoint_graph = Graph()
 
         self._build()
 
@@ -182,8 +184,8 @@ class CommunicationTrench(Trench):
 
         fl_trench_prox_end_coord = Coordinate(fl_trench_prox_end[0], fl_trench_prox_end[1])
 
-        self._width = fl_trench_prox_end_coord.calculate_distance(sl_trench_prox_start)
-        self._height = self._to_trench.get_height() // 2
+        self._width = int(fl_trench_prox_end_coord.calculate_distance(sl_trench_prox_start))
+        self._height = int(self._to_trench.get_height() // 2)
 
     def _calc_line_one(self):
         line_one = self._from_trench.get_line_one_coord()
@@ -195,7 +197,6 @@ class CommunicationTrench(Trench):
             pass
 
         self._width = None
-
 
     def _calc_line_two(self):
         pass

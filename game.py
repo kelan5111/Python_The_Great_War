@@ -38,6 +38,8 @@ class Game:
         self._environment_group = EnvironmentGroup(self._screen)
         self._ui_group = UIGroup(self._screen)
 
+        self._trenches = {}
+
         self._field_waypoints = Graph(self._width + (self._width // 2), self._height, 30)
         self._field_waypoints.build()
         self._timer = Timer()
@@ -85,11 +87,13 @@ class Game:
         self._environment_group.act(mouse_pos)
         self._ui_group.act(mouse_pos)
 
-    def _initialize_ui(self, trench_list):
+    def _initialize_ui(self):
+        all_trenches = [t for sublist in self._trenches.values() for t in sublist]
+
         select_box = SelectBox(Coordinate(0, 0), self._player_country, 0, 0, self._ui_group)
 
         console = Console(Coordinate(0, self._height - 40), self._width, 200, self._ui_group,
-                          (0, 0, 0), '[CONSOLE]', self._field_waypoints, trench_list, self._npc_group)
+                          (0, 0, 0), '[CONSOLE]', self._field_waypoints, all_trenches, self._npc_group)
 
         interactive_tab = InteractiveTab(Coordinate(0, 0), self._width, 40, self._ui_group)
 
@@ -107,10 +111,10 @@ class Game:
         self._interactive_tab.add_icon(button_one)'''
 
         self._initialize_waypoints()
-        trench_list, support_lines, support_line_trenches_proximity, front_line_trenches_proximity = self._initialize_trenches()
-        self._initialize_ui(trench_list)
-        self._initialize_soldiers(10, support_line_trenches_proximity, support_lines)
-        self._initialize_artillery(support_line_trenches_proximity, front_line_trenches_proximity)
+        self._initialize_trenches()
+        self._initialize_ui()
+        self._initialize_soldiers(10)
+        self._initialize_artillery()
 
     def _initialize_waypoints(self):
         self._field_waypoints.build()
@@ -218,11 +222,14 @@ class Game:
         elif keys[pygame.K_a]:
             self._world_camera.update(Direction.LEFT, self._dt)
 
-    def _initialize_soldiers(self, num_soldiers, trench_coord_list, starting_trenches):
+    def _initialize_soldiers(self, num_soldiers):
+        support_trenches = self._trenches.get("support_line")
+        support_trenches_prox = [slt.get_proximity() for slt in support_trenches]
+
         for sides in range(0, 2):
             for soldier_count in range(num_soldiers):
-                starting_trench = starting_trenches[sides]
-                starting_trench_coord = trench_coord_list[sides]
+                starting_trench = support_trenches[sides]
+                starting_trench_coord = support_trenches_prox[sides]
 
                 rand_x = random.randint(starting_trench_coord[0][0], starting_trench_coord[0][1])
                 rand_y = random.randint(starting_trench_coord[1][0], starting_trench_coord[1][1])
@@ -240,11 +247,13 @@ class Game:
                 morale_bar.set_npc(soldier)
                 soldier.set_weapon(bolt_action_rifle)
 
-    def _initialize_artillery(self, support_lines_prox, front_line_prox):
+    def _initialize_artillery(self):
         spaced = 70
-        height = 40
         total_artillery = self._height // spaced
         trench_distance = 400
+
+        support_lines_prox = [slt.get_proximity() for slt in self._trenches.get("support_line")]
+        front_lines_prox = [flt.get_proximity() for flt in self._trenches.get("front_line")]
 
         curr_y = 0
 
@@ -254,7 +263,7 @@ class Game:
             country = None
 
             friendly_support_trench_coord = support_lines_prox[fighting_direction.value][0]
-            friendly_front_line_coord = front_line_prox[fighting_direction.value][0]
+            friendly_front_line_coord = front_lines_prox[fighting_direction.value][0]
             enemy_support_trench_coord = None
             enemy_front_line_coord = None
 
@@ -262,7 +271,7 @@ class Game:
                 country = self._player_country
 
                 enemy_support_trench_coord = support_lines_prox[FightingDirection.EAST.value][0]
-                enemy_front_line_coord = front_line_prox[FightingDirection.WEST.value][0]
+                enemy_front_line_coord = front_lines_prox[FightingDirection.WEST.value][0]
 
                 new_x = friendly_support_trench_coord[0] - trench_distance
 
@@ -270,7 +279,7 @@ class Game:
                 country = self._ai_country
 
                 enemy_support_trench_coord = support_lines_prox[FightingDirection.WEST.value][0]
-                enemy_front_line_coord = front_line_prox[FightingDirection.WEST.value][0]
+                enemy_front_line_coord = front_lines_prox[FightingDirection.WEST.value][0]
 
                 new_x = friendly_support_trench_coord[0] + trench_distance
 
@@ -308,9 +317,6 @@ class Game:
                                                         self._ground_colour, self._npc_group.get_actors(),
                                                         self._environment_group)
 
-        support_line_trenches_proximity = [support_line_west.get_proximity(), support_line_east.get_proximity()]
-        front_line_trenches_proximity = [front_line_west.get_proximity(), front_line_east.get_proximity()]
-        support_lines = [support_line_west, support_line_east]
-        trench_list = [support_line_west, support_line_east, front_line_west, front_line_east]
-
-        return trench_list, support_lines, support_line_trenches_proximity, front_line_trenches_proximity
+        self._trenches["front_line"] = [front_line_west, front_line_east]
+        self._trenches["support_line"] = [support_line_west, support_line_east]
+        self._trenches["communication"] = [communication_trench_west, communication_trench_east]
