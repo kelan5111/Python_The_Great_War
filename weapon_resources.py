@@ -76,7 +76,7 @@ class Artillery(Weapon):
         self._shell_supply = ammo_capacity
         self._field_waypoint_graph = field_waypoint_graph
         self._country = country
-        self._fighting_direction = country.value[1]
+        self._fighting_direction = country.value["fighting_direction"]
 
         self._friendly_slt_coord = friendly_slt_coord
         self._enemy_slt_coord = enemy_slt_coord

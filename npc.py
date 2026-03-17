@@ -17,7 +17,7 @@ class NPC(Actor):
         self._width = NPC.SIZE
         self._height = NPC.SIZE
         self._country = country
-        self._colour = country.value[0]
+        self._colour = country.value["colour"]
         self._border_colour = (0, 0, 0)
         self._regiment_colour = (0, 0, 0)
         self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
@@ -133,7 +133,6 @@ class NPC(Actor):
         return None
 
     def _switch_waypoint_graph(self):
-        print(True)
         # Swap the current with the new graph after current path is finished
         self._curr_waypoint_graph = self._next_waypoint_graph
         self._next_waypoint_graph = None
@@ -317,13 +316,25 @@ class Gunner(SpecialForces):
 
 
 class FightingDirection(Enum):
-    WEST = 0
-    EAST = 1
+    WEST = {
+        "id": 0,
+        "name": "west"
+    }
+    EAST = {
+        "id": 1,
+        "name": "east"
+    }
 
 
 class Country(Enum):
-    BRITAIN = (pygame.color.Color(107, 94, 65), FightingDirection.WEST)
-    GERMANY = (pygame.color.Color(75, 83, 72), FightingDirection.EAST)
+    BRITAIN = {
+        "colour": pygame.color.Color(107, 94, 65),
+        "fighting_direction": FightingDirection.WEST
+    }
+    GERMANY = {
+        "colour": pygame.color.Color(75, 83, 72),
+        "fighting_direction": FightingDirection.EAST
+    }
 
 
 class WeaponType(Enum):

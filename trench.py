@@ -19,7 +19,7 @@ class Trench(Actor):
         self._ground_colour = ground_colour
         self._total_capacity = total_capacity
         self._country = country
-        self._fighting_direction = country.value[1]
+        self._fighting_direction = country.value["fighting_direction"]
 
         self._boarder_rect = pygame.Rect(coord.get_coord(), (self._width, height))
 
