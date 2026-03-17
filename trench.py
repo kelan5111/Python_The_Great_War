@@ -8,7 +8,7 @@ from npc import Soldier, FightingDirection
 from waypoint import Graph
 
 
-class Trench(Actor, ABC):
+class Trench(Actor):
     def __init__(self, coord, width, height, total_capacity, country, ground_colour, npc_list, group):
         super().__init__(coord, width, height, group)
         self._coord = coord

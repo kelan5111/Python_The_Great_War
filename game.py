@@ -105,11 +105,6 @@ class Game:
     def _initialize(self):
         pygame.display.set_caption('The Great War')
 
-        '''button_one = Button(Coordinate(0, 0), 0, 0, self._ui_group,
-                            (0, 0, 0), "Button One", 0, (0, 0, 0), (0, 0, 0))
-
-        self._interactive_tab.add_icon(button_one)'''
-
         self._initialize_waypoints()
         self._initialize_trenches()
         self._initialize_ui()
@@ -151,19 +146,21 @@ class Game:
             if event.button == 3:
                 for npc in self._npc_group.get_actors():
                     if isinstance(npc, Soldier):
-                        if npc.has_selected() and not npc.is_idle():
-                            npc.set_path(mouse_pos)
-                            npc.set_select(False)
+                        if npc.has_selected():
+                            if not npc.is_idle():
+                                npc.set_path(mouse_pos)
+                                npc.set_select(False)
+                            else:
+                                all_trenches = [
+                                    trench for trench_list in self._trenches.values() for trench in trench_list
+                                ]
 
-                            # options = (trench for trench in self._group.find(Trench) if trench.has_hover())
-                            # selected_trench = next(options, None)
+                                for trench in all_trenches:
+                                    if trench.has_collided(mouse_pos):
+                                        trench_waypoints = trench.get_waypoint_graph()
 
-                            '''if selected_trench is not None:
-                                # Change the waypoint graph of the soldier to the trench's
-                                actor.set_next_waypoint_graph(selected_trench.get_waypoint_graph())
-                                actor.set_idle(True)'''
-
-                    # Unselect Trench once selected
+                                        npc.set_next_waypoint_graph(trench_waypoints)
+                                        trench.set_select(False)
 
         if event.type == pygame.MOUSEBUTTONDOWN:
             console = self._ui_group.find(Console)
