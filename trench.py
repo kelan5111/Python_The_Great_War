@@ -39,6 +39,8 @@ class Trench(Actor):
         self._curr_soldiers = []
         self._npc_list = npc_list
 
+        self._waypoint_graph.set_debug(True)
+
     def draw(self, screen, camera):
         screen_rect = camera.translate_rect(self._rect)
 
@@ -69,10 +71,12 @@ class Trench(Actor):
         self._boarder_rect = pygame.Rect(self._coord.get_coord(), (self._width, self._height))
 
     def _update_curr_soldiers(self):
-        for actor in self._npc_list:
-            if self.has_collided(actor) and self.has_selected():
-                if actor not in self._curr_soldiers:
-                    self._curr_soldiers.append(actor)
+        for npc in self._npc_list:
+            if self.has_collided(npc):
+                self._curr_soldiers.append(npc)
+
+            if npc in self._curr_soldiers and not self.has_collided(npc):
+                self._curr_soldiers.remove(npc)
 
     def _check_hover(self):
         if self._select:
@@ -183,3 +187,9 @@ class CommunicationTrench(Trench):
 
         self._line_x = (self._rect.left, self._rect.right)
         self._line_y = (self._rect.top, self._rect.bottom)
+
+    def get_from_trench(self):
+        return self._from_trench
+
+    def to_trench(self):
+        return self._to_trench

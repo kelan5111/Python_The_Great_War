@@ -35,6 +35,7 @@ class NPC(Actor):
         self._engaged = False
         self._moving = False
         self._idle = True
+        self._curr_trench = None
 
         self._path = []
         self._curr_waypoint_graph = waypoint_graph
@@ -59,7 +60,7 @@ class NPC(Actor):
 
     def act(self, mouse_pos):
         self._execute_idle_movement()
-        self._execute_player_movement()
+        self._execute_controlled_movement()
 
     def _execute_idle_movement(self):
         if self._idle and not self._moving:
@@ -67,10 +68,10 @@ class NPC(Actor):
             next_coord = random.choice(neighbours).get_coord()
             self.set_path(next_coord)
 
-    def _execute_player_movement(self):
+    def _execute_controlled_movement(self):
         if not self._engaged:
             if self._target_waypoint is None:
-                if self._path:
+                if len(self._path) > 0:
                     self._target_waypoint = self._path.pop()
                 else:
                     if self._next_waypoint_graph is not None:
@@ -81,12 +82,20 @@ class NPC(Actor):
 
             target_coord = self._target_waypoint.get_coord()
 
-            if self._world_coord.get_coord() == target_coord.get_coord():
+            dist_x = abs(self._world_coord.get_x() - target_coord.get_x())
+            dist_y = abs(self._world_coord.get_y() - target_coord.get_y())
+
+            if dist_x <= NPC.SPEED and dist_y <= NPC.SPEED:
+                self._update_rect(target_coord)
                 self._curr_waypoint = self._target_waypoint
                 self._target_waypoint = None
                 return
 
-            next_coord = self._calc_next_move(target_coord)
+            if self._curr_trench is None:
+                next_coord = self._calc_movement(target_coord)
+            else:
+                next_coord = self._calc_trench_movement(target_coord)
+
             self._update_rect(next_coord)
 
     def set_path(self, target_coord=None, waypoint_id=None):
@@ -104,7 +113,7 @@ class NPC(Actor):
         else:
             self._moving = False
 
-    def _calc_next_move(self, target_coord):
+    def _calc_movement(self, target_coord):
         step = 1
         new_x = self._world_coord.get_x()
         new_y = self._world_coord.get_y()
@@ -131,6 +140,30 @@ class NPC(Actor):
                 return enemy
 
         return None
+
+    def _calc_trench_movement(self, target_coord):
+        step = 1
+        new_x = self._world_coord.get_x()
+        new_y = self._world_coord.get_y()
+        target_x = target_coord.get_x()
+        target_y = target_coord.get_y()
+
+        trench_rect = self._curr_trench.get_rect()
+
+        if new_x < target_x:
+            new_x += (step * NPC.SPEED)
+        elif new_x > target_x:
+            new_x -= (step * NPC.SPEED)
+
+        if new_y < target_y:
+            new_y += (step * NPC.SPEED)
+        elif new_y > target_y:
+            new_y -= (step * NPC.SPEED)
+
+        clamped_x = max(trench_rect.left, min(new_x, trench_rect.right - self._width))
+        clamped_y = max(trench_rect.top, min(new_y, trench_rect.bottom - self._height))
+
+        return Coordinate(clamped_x, clamped_y)
 
     def _switch_waypoint_graph(self):
         # Swap the current with the new graph after current path is finished
@@ -182,6 +215,12 @@ class NPC(Actor):
 
         self._select = select
 
+    def set_curr_trench(self, curr_trench):
+        self._curr_trench = curr_trench
+
+    def get_curr_trench(self):
+        return self._curr_trench
+
 
 class Soldier(NPC):
     def __init__(self, coord, width, height, curr_waypoint_graph, country, group, morale_bar, weapon=None):
@@ -201,8 +240,8 @@ class Soldier(NPC):
         super().act(mouse_pos)
 
         self._detect_enemies()
-
         self._monitor_shell_shocked()
+        self._monitor_select()
 
     def kill(self):
         self._alive = False
@@ -256,6 +295,14 @@ class Soldier(NPC):
 
         self._select = select
 
+    def _monitor_select(self):
+        if self._select:
+            self._idle = False
+            self._path.clear()
+            self._target_waypoint = None
+        else:
+            self._idle = True
+
     def set_weapon(self, weapon):
         weapon.set_owner(self)
         self._weapon = weapon
@@ -290,6 +337,9 @@ class Soldier(NPC):
     def is_shell_shocked(self):
         return self._shell_shocked
 
+    def is_moving(self):
+        return self._moving
+
 
 class SpecialForces(Soldier):
     def __init__(self, coord, width, height, curr_waypoint_graph, country, group, morale_bar):
@@ -313,6 +363,9 @@ class Gunner(SpecialForces):
 
         if self._weapon is not None:
             self._weapon.shoot_random_projectile(self._actors)
+
+    def _monitor_select(self):
+        pass
 
 
 class FightingDirection(Enum):
