@@ -6,6 +6,7 @@ from coordinate import Coordinate
 from game_mechanics import Actor
 from npc import Soldier, FightingDirection
 from waypoint import Graph
+from fortifications import Sandbag
 
 
 class Trench(Actor):
@@ -17,7 +18,8 @@ class Trench(Actor):
 
         self._outline_colour = (207, 185, 151)
         self._ground_colour = ground_colour
-        self._total_capacity = total_capacity
+        self._max_capacity = total_capacity
+        self._sandbag_list = []
         self._country = country
         self._fighting_direction = country.value["fighting_direction"]
 
@@ -40,8 +42,6 @@ class Trench(Actor):
         self._curr_soldiers = []
         self._npc_list = npc_list
 
-        self._waypoint_graph.set_debug(True)
-
     def draw(self, screen, camera):
         screen_rect = camera.translate_rect(self._rect)
 
@@ -52,12 +52,28 @@ class Trench(Actor):
         screen_end_line_two = camera.translate_coord(self._end_line_two)
 
         # Draw the outline of the trench
-        pygame.draw.line(screen, self._outline_colour, screen_start_line_one, screen_end_line_one, 5)
-        pygame.draw.line(screen, self._outline_colour, screen_start_line_two, screen_end_line_two, 5)
+        pygame.draw.line(screen, self._outline_colour, screen_start_line_one, screen_end_line_one, 10)
+        pygame.draw.line(screen, self._outline_colour, screen_start_line_two, screen_end_line_two, 10)
         # Drawing the trench's ground
         pygame.draw.rect(screen, self._ground_colour, screen_rect)
 
         self._waypoint_graph.draw(screen, camera)
+
+    def _build_sandbags(self, group):
+        image_path = "assets/images/sandbag_normal.png"
+
+        for start_line, end_line in self._lines:
+            current_y = start_line[1]
+
+            while current_y < end_line[1]:
+                new_x = start_line[0]
+
+                new_sandbag = Sandbag(image_path, Coordinate(new_x, current_y), 70, 70, group, 10)
+                self._sandbag_list.append(new_sandbag)
+
+                spaced = random.randint(18, 20)
+
+                current_y += spaced
 
     def act(self, mouse_pos):
         self._update_curr_soldiers()
@@ -96,9 +112,31 @@ class Trench(Actor):
     def get_comm_trenches(self):
         return self._comm_trenches
 
-    @abstractmethod
-    def _build(self):
-        pass
+    def _build(self, group):
+        self._build_lines()
+        self._build_sandbags(group)
+
+    def _build_lines(self):
+        start_line_one = self._rect.topleft
+        start_line_two = self._rect.topright
+        finish_line_one = self._rect.bottomleft
+        finish_line_two = self._rect.bottomright
+
+        self._lines = [
+            (start_line_one, finish_line_one),  # Left vertical line
+            (start_line_two, finish_line_two)  # Right vertical line
+        ]
+
+        self._perimeter_points = []
+
+        for (start_x, start_y), (finish_x, finish_y) in self._lines:
+            if start_x == finish_x:
+                for y in range(min(start_y, finish_y), max(start_y, finish_y)):
+                    self._perimeter_points.append((start_x, y))
+
+            elif start_y == finish_y:
+                for x in range(min(start_x, finish_x), max(start_x, finish_x)):
+                    self._perimeter_points.append((x, start_y))
 
     def set_debug(self, debug):
         self._waypoint_graph.set_debug(debug)
@@ -124,29 +162,27 @@ class Trench(Actor):
     def get_fighting_direction(self):
         return self._fighting_direction
 
-    def get_total_capacity(self):
-        return self._total_capacity
+    def get_max_capacity(self):
+        return self._max_capacity
 
 
 class FrontLineTrench(Trench, ABC):
     def __init__(self, coord, width, height, total_capacity, country, ground_colour, npc_actors, group):
         super().__init__(coord, width, height, total_capacity, country, ground_colour, npc_actors, group)
 
-    def _build(self):
-        pass
+        self._build(group)
 
 
 class SupportTrench(Trench, ABC):
     def __init__(self, coord, width, height, total_capacity, country, ground_colour, npc_actors, group):
         super().__init__(coord, width, height, total_capacity, country, ground_colour, npc_actors, group)
 
+        self._build(group)
+
     def act(self, mouse_pos):
         super().act(mouse_pos)
 
         self._monitor_troops()
-
-    def _build(self):
-        pass
 
     def recruit(self):
         pass
@@ -160,7 +196,7 @@ class SupportTrench(Trench, ABC):
 
         flt_curr_soldiers = front_line_trench.get_curr_soldiers()
 
-        if len(flt_curr_soldiers) < front_line_trench.get_total_capacity():
+        if len(flt_curr_soldiers) < front_line_trench.get_max_capacity():
             rand_soldier = random.choice(self._curr_soldiers)
 
             if not rand_soldier.is_moving():
@@ -175,24 +211,24 @@ class CommunicationTrench(Trench):
         self._connected_trench_one = from_trench
         self._connected_trench_two = to_trench
 
+        self._width = 20
+
         self._entrance_points = {}
 
-        self._build()
+        self._build(group)
         self._waypoint_graph = Graph(self._width, self._height, 20)
         self._waypoint_graph.build(self._line_x, self._line_y)
-
-        self._waypoint_graph.set_debug(True)
 
     def draw(self, screen, camera):
         for from_coord, to_coord in self._lines:
             screen_from_coord = camera.translate_coord(from_coord)
             screen_to_coord = camera.translate_coord(to_coord)
 
-            pygame.draw.line(screen, self._outline_colour, screen_from_coord, screen_to_coord, 2)
+            pygame.draw.line(screen, self._outline_colour, screen_from_coord, screen_to_coord, 4)
 
         self._waypoint_graph.draw(screen, camera)
 
-    def _build(self):
+    def _build_lines(self):
         line_start = None
         line_start_bottom = None
         line_end = None

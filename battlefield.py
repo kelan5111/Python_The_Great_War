@@ -199,6 +199,7 @@ class Battlefield:
         front_line_west.add_comm_trenches(communication_trench_west)
         support_line_west.add_comm_trenches(communication_trench_west)
 
+
         self._trenches["front_line"] = {"west": front_line_west, "east": front_line_east}
         self._trenches["support_line"] = {"west": support_line_west, "east": support_line_east}
         self._trenches["communication"] = {"west": communication_trench_west, "east": communication_trench_east}

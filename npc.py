@@ -401,6 +401,9 @@ class Soldier(NPC):
                 self._morale_bar.set_show(False)
                 self._timer.reset()
 
+    def retreat(self):
+        pass
+
     def is_shell_shocked(self):
         return self._shell_shocked
 
