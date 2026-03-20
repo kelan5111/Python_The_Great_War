@@ -258,7 +258,6 @@ class Soldier(NPC):
 
         self._detect_enemies()
         self._monitor_shell_shocked()
-        self._monitor_select()
         self._monitor_trenches()
 
     def kill(self):
@@ -338,6 +337,8 @@ class Soldier(NPC):
             self.set_idle(True)
 
     def switch_trenches(self, target_trench):
+        self._idle = False
+
         self._trench_path["target"] = target_trench
         self._trench_path["comm"] = target_trench.get_comm_trenches()[0]
         self._trench_path["state"] = "moving_to_comm"
@@ -368,12 +369,6 @@ class Soldier(NPC):
             self.hide_moral_bar()
 
         self._select = select
-
-    def _monitor_select(self):
-        if self._select:
-            self._idle = False
-        else:
-            self._idle = True
 
     def set_weapon(self, weapon):
         weapon.set_owner(self)

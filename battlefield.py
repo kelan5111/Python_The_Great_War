@@ -305,24 +305,4 @@ class Battlefield:
         elif keys[pygame.K_a]:
             self._world_camera.update(Direction.LEFT, dt)
 
-    def _switch_trenches(self, selected_npc, selected_trench):
-        trench_fighting_direction = selected_trench.get_fighting_direction()
-        npc_coord = selected_npc.get_coord()
-
-        closest_comm_trench = None
-        closest_distance = None
-
-        comm_trench = self._trenches["communication"][trench_fighting_direction.value["name"]]
-
-
-        '''trench_waypoint_graph = selected_trench.get_waypoint_graph()
-        closest_coord = trench_waypoint_graph.find_nearest_waypoint(npc_coord)
-        distance_from_npc = npc_coord.calculate_distance(closest_coord)
-
-        if (closest_comm_trench is None or
-                distance_from_npc > closest_distance):
-
-            closest_comm_trench = comm_trench
-            closest_distance = comm_trench'''
-
 

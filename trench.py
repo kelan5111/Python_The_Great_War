@@ -115,11 +115,17 @@ class Trench(Actor):
     def get_waypoint_graph(self):
         return self._waypoint_graph
 
+    def get_curr_soldiers(self):
+        return self._curr_soldiers
+
     def get_country(self):
         return self._country
 
     def get_fighting_direction(self):
         return self._fighting_direction
+
+    def get_total_capacity(self):
+        return self._total_capacity
 
 
 class FrontLineTrench(Trench, ABC):
@@ -134,11 +140,31 @@ class SupportTrench(Trench, ABC):
     def __init__(self, coord, width, height, total_capacity, country, ground_colour, npc_actors, group):
         super().__init__(coord, width, height, total_capacity, country, ground_colour, npc_actors, group)
 
+    def act(self, mouse_pos):
+        super().act(mouse_pos)
+
+        self._monitor_troops()
+
     def _build(self):
         pass
 
     def recruit(self):
         pass
+
+    def _monitor_troops(self):
+        self._check_transfer_troops()
+
+    def _check_transfer_troops(self):
+        comm_trench = self._comm_trenches[0]
+        support_line_trench, front_line_trench = comm_trench.get_connected_trenches()
+
+        flt_curr_soldiers = front_line_trench.get_curr_soldiers()
+
+        if len(flt_curr_soldiers) < front_line_trench.get_total_capacity():
+            rand_soldier = random.choice(self._curr_soldiers)
+
+            if not rand_soldier.is_moving():
+                rand_soldier.switch_trenches(front_line_trench)
 
 
 class CommunicationTrench(Trench):
@@ -146,8 +172,8 @@ class CommunicationTrench(Trench):
                  coord=Coordinate(0, 0), width=0, height=0):
         super().__init__(coord, width, height, total_capacity, country, ground_colour, npc_list, group)
 
-        self._from_trench = from_trench
-        self._to_trench = to_trench
+        self._connected_trench_one = from_trench
+        self._connected_trench_two = to_trench
 
         self._entrance_points = {}
 
@@ -173,14 +199,14 @@ class CommunicationTrench(Trench):
 
         # 1. Get the Top and Bottom coords to find the true middle
         if self._fighting_direction == FightingDirection.WEST:
-            line_start = self._from_trench.get_line_two_coord()[0]  # Top Right
-            line_start_bottom = self._from_trench.get_line_two_coord()[1]   # Bottom Right
-            line_end = self._to_trench.get_line_one_coord()[0]  # Top Left
+            line_start = self._connected_trench_one.get_line_two_coord()[0]  # Top Right
+            line_start_bottom = self._connected_trench_one.get_line_two_coord()[1]  # Bottom Right
+            line_end = self._connected_trench_two.get_line_one_coord()[0]  # Top Left
 
         elif self._fighting_direction == FightingDirection.EAST:
-            line_start = self._from_trench.get_line_one_coord()[0]  # Top Left
-            line_start_bottom = self._from_trench.get_line_one_coord()[1]   # Bottom Left
-            line_end = self._to_trench.get_line_two_coord()[0]  # Top Right
+            line_start = self._connected_trench_one.get_line_one_coord()[0]  # Top Left
+            line_start_bottom = self._connected_trench_one.get_line_one_coord()[1]  # Bottom Left
+            line_end = self._connected_trench_two.get_line_two_coord()[0]  # Top Right
 
         mid_y = (line_start[1] + line_start_bottom[1]) // 2
 
@@ -218,8 +244,5 @@ class CommunicationTrench(Trench):
     def get_entrance_points(self):
         return self._entrance_points
 
-    def get_from_trench(self):
-        return self._from_trench
-
-    def to_trench(self):
-        return self._to_trench
+    def get_connected_trenches(self):
+        return self._connected_trench_one, self._connected_trench_two

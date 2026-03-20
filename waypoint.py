@@ -99,7 +99,7 @@ class Graph:
         for x in range(start_width_x, self._width, self._spaced):
             column = []  # Create a new empty column for every X
             for y in range(start_height_x, self._height, self._spaced):
-                column.append(Node(Coordinate(x + self._spaced, y + self._spaced)))  # Add nodes to the column
+                column.append(Node(Coordinate(x + self._spaced // 2, y + self._spaced // 2)))  # Add nodes to the column
             temp.append(column)
 
         # Building the graph
