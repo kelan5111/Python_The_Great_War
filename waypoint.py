@@ -171,6 +171,11 @@ class Graph:
                 # BFS search for path with a target
                 target_waypoint = self._breadth_first_search(start, target_waypoint.get_ID())
 
+            if target_waypoint is not None:
+                path.append(target_waypoint)
+            else:
+                return None
+
         # Base case: until we reach the start node
         parent = target_waypoint.get_parent()
         if parent is None or target_waypoint.get_ID() == start.get_ID():

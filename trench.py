@@ -32,6 +32,7 @@ class Trench(Actor):
         self._end_line_two = self._rect.bottomright
 
         self._line_list = []
+        self._comm_trenches = []
 
         self._waypoint_graph = Graph(self._width, height, 20)
         self._waypoint_graph.build(self._line_x, self._line_y)
@@ -86,6 +87,15 @@ class Trench(Actor):
         else:
             self._outline_colour = (207, 185, 151)
 
+    def calc_entrance_points(self):
+        pass
+
+    def add_comm_trenches(self, comm_trench):
+        self._comm_trenches.append(comm_trench)
+
+    def get_comm_trenches(self):
+        return self._comm_trenches
+
     @abstractmethod
     def _build(self):
         pass
@@ -107,6 +117,9 @@ class Trench(Actor):
 
     def get_country(self):
         return self._country
+
+    def get_fighting_direction(self):
+        return self._fighting_direction
 
 
 class FrontLineTrench(Trench, ABC):
@@ -136,6 +149,8 @@ class CommunicationTrench(Trench):
         self._from_trench = from_trench
         self._to_trench = to_trench
 
+        self._entrance_points = {}
+
         self._build()
         self._waypoint_graph = Graph(self._width, self._height, 20)
         self._waypoint_graph.build(self._line_x, self._line_y)
@@ -153,18 +168,24 @@ class CommunicationTrench(Trench):
 
     def _build(self):
         line_start = None
+        line_start_bottom = None
         line_end = None
 
+        # 1. Get the Top and Bottom coords to find the true middle
         if self._fighting_direction == FightingDirection.WEST:
-            line_start = self._from_trench.get_line_two_coord()[1]
-            line_end = self._to_trench.get_line_one_coord()[0]
+            line_start = self._from_trench.get_line_two_coord()[0]  # Top Right
+            line_start_bottom = self._from_trench.get_line_two_coord()[1]   # Bottom Right
+            line_end = self._to_trench.get_line_one_coord()[0]  # Top Left
 
         elif self._fighting_direction == FightingDirection.EAST:
-            line_start = self._from_trench.get_line_one_coord()[1]
-            line_end = self._to_trench.get_line_two_coord()[0]
+            line_start = self._from_trench.get_line_one_coord()[0]  # Top Left
+            line_start_bottom = self._from_trench.get_line_one_coord()[1]   # Bottom Left
+            line_end = self._to_trench.get_line_two_coord()[0]  # Top Right
 
-        line_one_start = line_start[0], line_start[1] // 2
-        line_one_end = line_end[0], line_start[1] // 2
+        mid_y = (line_start[1] + line_start_bottom[1]) // 2
+
+        line_one_start = line_start[0], mid_y
+        line_one_end = line_end[0], mid_y
 
         line_two_start = line_one_start[0], line_one_start[1] - 20
         line_two_end = line_one_end[0], line_one_end[1] - 20
@@ -172,6 +193,12 @@ class CommunicationTrench(Trench):
         self._lines = [[line_one_start, line_one_end], [line_two_start, line_two_end]]
 
         self._calc_diameter()
+
+        entrance_one = self._rect.topleft
+        entrance_two = self._rect.topright
+
+        self._entrance_points["left_entrance"] = entrance_one
+        self._entrance_points["right_entrance"] = entrance_two
 
     def _calc_diameter(self):
         line_one_start, line_one_end = self._lines[0]
@@ -187,6 +214,9 @@ class CommunicationTrench(Trench):
 
         self._line_x = (self._rect.left, self._rect.right)
         self._line_y = (self._rect.top, self._rect.bottom)
+
+    def get_entrance_points(self):
+        return self._entrance_points
 
     def get_from_trench(self):
         return self._from_trench

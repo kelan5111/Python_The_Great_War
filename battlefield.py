@@ -194,6 +194,11 @@ class Battlefield:
                                                         self._ground_colour, self._npc_group.get_actors(),
                                                         self._environment_group)
 
+        front_line_east.add_comm_trenches(communication_trench_east)
+        support_line_east.add_comm_trenches(communication_trench_east)
+        front_line_west.add_comm_trenches(communication_trench_west)
+        support_line_west.add_comm_trenches(communication_trench_west)
+
         self._trenches["front_line"] = {"west": front_line_west, "east": front_line_east}
         self._trenches["support_line"] = {"west": support_line_west, "east": support_line_east}
         self._trenches["communication"] = {"west": communication_trench_west, "east": communication_trench_east}
@@ -232,23 +237,16 @@ class Battlefield:
                 for npc in self._npc_group.get_actors():
                     if isinstance(npc, Soldier):
                         if npc.has_selected():
-                            if not npc.is_idle():
-                                npc.set_path(camera_mouse_pos)
                             selectable_trenches = [self._trenches["front_line"][self._player_fighting_direction.value["name"]],
                                                    self._trenches["support_line"][self._player_fighting_direction.value["name"]]
                                                    ]
 
                             for trench in selectable_trenches:
                                 if trench.has_collided(camera_mouse_pos):
-                                    comm_trench = self._trenches["communication"][self._player_fighting_direction.value["name"]]
-
-                                    comm_trench_waypoints = comm_trench.get_waypoint_graph()
-                                    trench_w = trench.get_waypoint_graph()
-                                    npc.set_next_waypoint_graph(trench_w)
+                                    npc.set_debug_mode(True)
+                                    npc.switch_trenches(trench)
 
                                     trench.set_select(False)
-                                    npc.set_curr_trench(trench)
-                                    npc.set_next_waypoint_graph(trench.get_waypoint_graph())
 
         if event.type == pygame.MOUSEBUTTONDOWN:
             console = self._ui_group.find(Console)
@@ -306,3 +304,25 @@ class Battlefield:
             self._world_camera.update(Direction.RIGHT, dt)
         elif keys[pygame.K_a]:
             self._world_camera.update(Direction.LEFT, dt)
+
+    def _switch_trenches(self, selected_npc, selected_trench):
+        trench_fighting_direction = selected_trench.get_fighting_direction()
+        npc_coord = selected_npc.get_coord()
+
+        closest_comm_trench = None
+        closest_distance = None
+
+        comm_trench = self._trenches["communication"][trench_fighting_direction.value["name"]]
+
+
+        '''trench_waypoint_graph = selected_trench.get_waypoint_graph()
+        closest_coord = trench_waypoint_graph.find_nearest_waypoint(npc_coord)
+        distance_from_npc = npc_coord.calculate_distance(closest_coord)
+
+        if (closest_comm_trench is None or
+                distance_from_npc > closest_distance):
+
+            closest_comm_trench = comm_trench
+            closest_distance = comm_trench'''
+
+

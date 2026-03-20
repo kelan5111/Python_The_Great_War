@@ -292,7 +292,6 @@ class Console(TextBox):
     def __init__(self, coord, width, height, group, colour, prompt_symbol, field_waypoints, trench_list, npc_list):
         super().__init__(coord, width, height, group, colour, prompt_symbol, npc_list)
 
-        print(trench_list)
         self._commands = {
             "debug_trenches = true": lambda: [t.set_debug(True) for t in trench_list],
             "debug_field = true": lambda: field_waypoints.set_debug(True),

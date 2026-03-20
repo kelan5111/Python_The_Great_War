@@ -42,6 +42,8 @@ class NPC(Actor):
         self._next_waypoint_graph = None
         self._target_waypoint = None
 
+        self._debug_mode = False
+
         if coord is not None:
             self._curr_waypoint = self._curr_waypoint_graph.find_nearest_waypoint(coord.get_coord())
             self._world_coord = self._curr_waypoint.get_coord()
@@ -57,6 +59,19 @@ class NPC(Actor):
 
         pygame.draw.rect(screen, self._colour, screen_rect)
         pygame.draw.rect(screen, self._border_colour, screen_rect, border_thickness)
+
+        self._draw_path(screen, camera)
+
+    def _draw_path(self, screen, camera):
+        radius = 10
+        colour = (255, 0, 0)
+
+        if self._debug_mode:
+            for waypoint in self._path:
+                waypoint_coord = waypoint.get_coord().get_coord()
+                screen_coord = camera.translate_coord(waypoint_coord)
+
+                pygame.draw.circle(screen, colour, screen_coord, radius)
 
     def act(self, mouse_pos):
         self._execute_idle_movement()
@@ -101,7 +116,7 @@ class NPC(Actor):
     def set_path(self, target_coord=None, waypoint_id=None):
         if target_coord is not None:  # If we want to move to a certain coord (find the closest waypoint)
             self._target_waypoint = self._curr_waypoint_graph.find_nearest_waypoint(target_coord)
-            path = self._curr_waypoint_graph.build_path([self._target_waypoint], waypoint_id, self._curr_waypoint,
+            path = self._curr_waypoint_graph.build_path([], waypoint_id, self._curr_waypoint,
                                                         self._target_waypoint)
         else:
             path = self._curr_waypoint_graph.build_path([], waypoint_id, self._curr_waypoint, None)
@@ -160,10 +175,7 @@ class NPC(Actor):
         elif new_y > target_y:
             new_y -= (step * NPC.SPEED)
 
-        clamped_x = max(trench_rect.left, min(new_x, trench_rect.right - self._width))
-        clamped_y = max(trench_rect.top, min(new_y, trench_rect.bottom - self._height))
-
-        return Coordinate(clamped_x, clamped_y)
+        return Coordinate(new_x, new_y)
 
     def _switch_waypoint_graph(self):
         # Swap the current with the new graph after current path is finished
@@ -194,6 +206,9 @@ class NPC(Actor):
 
     def is_idle(self):
         return self._idle
+
+    def set_debug_mode(self, deug_mode):
+        self._debug_mode = deug_mode
 
     def show_moral_bar(self):
         self._morale_bar.set_show(True)
@@ -233,6 +248,8 @@ class Soldier(NPC):
         self._shot_chance = 100
         self._shell_shocked = False
 
+        self._trench_path = {}
+
     def __str__(self):
         return f"Soldier: {self._ID}, Country: {self._country}, Waypoint: {self._curr_waypoint}"
 
@@ -242,6 +259,7 @@ class Soldier(NPC):
         self._detect_enemies()
         self._monitor_shell_shocked()
         self._monitor_select()
+        self._monitor_trenches()
 
     def kill(self):
         self._alive = False
@@ -287,6 +305,62 @@ class Soldier(NPC):
 
         return False
 
+    def _monitor_trenches(self):
+        target_trench = self._trench_path.get("target")
+
+        if target_trench is None:
+            return
+
+        state = self._trench_path.get("state")
+        comm_trench = self._trench_path.get("comm")
+
+        if state == "moving_to_comm" and not self._moving:
+            self._trench_path["state"] = "in_comm_trench"
+
+            self.set_curr_trench(comm_trench)
+            self.set_next_waypoint_graph(comm_trench.get_waypoint_graph())
+            self._path.clear()
+
+            entrance_points = comm_trench.get_entrance_points()
+            entry_name = self._trench_path["entrance_name"]
+
+            exit_name = "right_entrance" if entry_name == "left_entrance" else "left_entrance"
+            exit_tuple = entrance_points[exit_name]
+            exit_coord = Coordinate(exit_tuple[0], exit_tuple[1])
+
+            self.set_path(exit_coord)
+
+        elif state == "in_comm_trench" and not self._moving:
+            self.set_curr_trench(target_trench)
+            self.set_next_waypoint_graph(target_trench.get_waypoint_graph())
+
+            self._trench_path.clear()
+            self.set_idle(True)
+
+    def switch_trenches(self, target_trench):
+        self._trench_path["target"] = target_trench
+        self._trench_path["comm"] = target_trench.get_comm_trenches()[0]
+        self._trench_path["state"] = "moving_to_comm"
+
+        comm_trench = self._trench_path["comm"]
+        entrance_points = comm_trench.get_entrance_points()
+
+        curr_closest_name = None
+        curr_closest_coord = None
+        min_distance = float("inf")
+
+        for entry_name, entry_tup in entrance_points.items():
+            distance = self._world_coord.calculate_distance(entry_tup)
+
+            if distance < min_distance:
+                min_distance = distance
+                curr_closest_name = entry_name
+                curr_closest_coord = entry_tup
+
+        if curr_closest_coord is not None:
+            self._trench_path["entrance_name"] = curr_closest_name
+            self.set_path(curr_closest_coord)
+
     def set_select(self, select):
         if select:
             self.show_moral_bar()
@@ -298,8 +372,6 @@ class Soldier(NPC):
     def _monitor_select(self):
         if self._select:
             self._idle = False
-            self._path.clear()
-            self._target_waypoint = None
         else:
             self._idle = True
 
