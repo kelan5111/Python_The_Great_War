@@ -1,8 +1,12 @@
+import enum
+
 import pygame
 from enum import Enum
 
 from coordinate import Coordinate, Direction
 from abc import ABC, abstractmethod
+
+from game_gui import SpriteSheet
 from game_mechanics import Actor, Timer
 import random
 
@@ -31,18 +35,16 @@ class NPC(Actor):
         self._morale = 100
         self._morale_bar = morale_bar
         self._show_morale_bar = False
-
-        self._engaged = False
-        self._moving = False
-        self._idle = True
         self._curr_trench = None
-
         self._path = []
         self._curr_waypoint_graph = waypoint_graph
         self._next_waypoint_graph = None
         self._target_waypoint = None
 
-        self._debug_mode = False
+        self._curr_direction = Direction.DEFAULT
+        self._curr_state = NPCState.IDLE
+        self._moving = False
+        self._debug = False
 
         if coord is not None:
             self._curr_waypoint = self._curr_waypoint_graph.find_nearest_waypoint(coord.get_coord())
@@ -57,16 +59,13 @@ class NPC(Actor):
         else:
             self._border_colour = self._regiment_colour
 
-        pygame.draw.rect(screen, self._colour, screen_rect)
-        pygame.draw.rect(screen, self._border_colour, screen_rect, border_thickness)
-
         self._draw_path(screen, camera)
 
     def _draw_path(self, screen, camera):
         radius = 10
         colour = (255, 0, 0)
 
-        if self._debug_mode:
+        if self._debug:
             for waypoint in self._path:
                 waypoint_coord = waypoint.get_coord().get_coord()
                 screen_coord = camera.translate_coord(waypoint_coord)
@@ -76,42 +75,50 @@ class NPC(Actor):
     def act(self, mouse_pos):
         self._execute_idle_movement()
         self._execute_controlled_movement()
+        self._update_sprite()
+
+        if self._moving and self._target_waypoint is not None:
+            self._move()
 
     def _execute_idle_movement(self):
-        if self._idle and not self._moving:
-            neighbours = self._curr_waypoint.get_neighbours()
-            next_coord = random.choice(neighbours).get_coord()
-            self.set_path(next_coord)
+        if self._curr_state == NPCState.IDLE and not self._moving:
+            if len(self._path) == 0 and self._target_waypoint is None:
+                neighbours = self._curr_waypoint.get_neighbours()
+
+                if neighbours:
+                    next_coord = random.choice(neighbours).get_coord()
+                    self.set_path(next_coord)
+
+                    self._moving = True
 
     def _execute_controlled_movement(self):
-        if not self._engaged:
+        if self._moving:
             if self._target_waypoint is None:
                 if len(self._path) > 0:
                     self._target_waypoint = self._path.pop()
                 else:
+                    self._moving = False
+
                     if self._next_waypoint_graph is not None:
                         self._switch_waypoint_graph()
 
-                    self._moving = False
-                    return
+    def _move(self):
+        target_coord = self._target_waypoint.get_coord()
 
-            target_coord = self._target_waypoint.get_coord()
+        dist_x = abs(self._world_coord.get_x() - target_coord.get_x())
+        dist_y = abs(self._world_coord.get_y() - target_coord.get_y())
 
-            dist_x = abs(self._world_coord.get_x() - target_coord.get_x())
-            dist_y = abs(self._world_coord.get_y() - target_coord.get_y())
+        if dist_x <= NPC.SPEED and dist_y <= NPC.SPEED:
+            self._curr_waypoint = self._target_waypoint
+            self._target_waypoint = None  # Clear target so controlled_movement grabs the next one
+            return
 
-            if dist_x <= NPC.SPEED and dist_y <= NPC.SPEED:
-                self._update_rect(target_coord)
-                self._curr_waypoint = self._target_waypoint
-                self._target_waypoint = None
-                return
+        if self._curr_trench is None:
+            next_coord = self._calc_movement(target_coord)
+        else:
+            next_coord = self._calc_trench_movement(target_coord)
 
-            if self._curr_trench is None:
-                next_coord = self._calc_movement(target_coord)
-            else:
-                next_coord = self._calc_trench_movement(target_coord)
-
-            self._update_rect(next_coord)
+        self._world_coord = next_coord
 
     def set_path(self, target_coord=None, waypoint_id=None):
         if target_coord is not None:  # If we want to move to a certain coord (find the closest waypoint)
@@ -122,11 +129,8 @@ class NPC(Actor):
             path = self._curr_waypoint_graph.build_path([], waypoint_id, self._curr_waypoint, None)
 
         if path is not None:
-            self._moving = True
             self._path = path
             self._target_waypoint = None
-        else:
-            self._moving = False
 
     def _calc_movement(self, target_coord):
         step = 1
@@ -137,13 +141,22 @@ class NPC(Actor):
 
         if new_x < target_x:
             new_x += (step * NPC.SPEED)
+            self._curr_direction = Direction.RIGHT
+
         elif new_x > target_x:
             new_x -= (step * NPC.SPEED)
+            self._curr_direction = Direction.LEFT
 
         if new_y < target_y:
             new_y += (step * NPC.SPEED)
+            self._curr_direction = Direction.DOWN
+
         elif new_y > target_y:
             new_y -= (step * NPC.SPEED)
+            self._curr_direction = Direction.UP
+
+        elif not self._moving:
+            self._curr_direction = Direction.DEFAULT
 
         return Coordinate(new_x, new_y)
 
@@ -167,13 +180,22 @@ class NPC(Actor):
 
         if new_x < target_x:
             new_x += (step * NPC.SPEED)
+            self._curr_direction = Direction.RIGHT
+
         elif new_x > target_x:
             new_x -= (step * NPC.SPEED)
+            self._curr_direction = Direction.LEFT
 
         if new_y < target_y:
             new_y += (step * NPC.SPEED)
+            self._curr_direction = Direction.DOWN
+
         elif new_y > target_y:
             new_y -= (step * NPC.SPEED)
+            self._curr_direction = Direction.UP
+
+        elif not self._moving:
+            self._curr_direction = Direction.DEFAULT
 
         return Coordinate(new_x, new_y)
 
@@ -188,12 +210,8 @@ class NPC(Actor):
     def _attack(self):
         pass
 
-    def _update_rect(self, coord):
-        self._world_coord = coord
+    def _update_sprite(self):
         self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
-
-    def set_idle(self, idle):
-        self._idle = idle
 
     def set_next_waypoint_graph(self, waypoint_graph):
         self._next_waypoint_graph = waypoint_graph
@@ -205,10 +223,7 @@ class NPC(Actor):
         return self._country
 
     def is_idle(self):
-        return self._idle
-
-    def set_debug_mode(self, deug_mode):
-        self._debug_mode = deug_mode
+        return self._curr_state == NPCState.IDLE
 
     def show_moral_bar(self):
         self._morale_bar.set_show(True)
@@ -236,6 +251,9 @@ class NPC(Actor):
     def get_curr_trench(self):
         return self._curr_trench
 
+    def set_curr_state(self, curr_state):
+        self._curr_state = curr_state
+
 
 class Soldier(NPC):
     def __init__(self, coord, width, height, curr_waypoint_graph, country, group, morale_bar, weapon=None):
@@ -248,10 +266,47 @@ class Soldier(NPC):
         self._shot_chance = 100
         self._shell_shocked = False
 
+        self._sprite = SpriteSheet("assets/images/sprite_sheets/soldier_british_walk-Sheet.png")
+        self._animations = self._set_animations()
+        self._animation_cooldown = 0.5
+        self._frame = 0
         self._trench_path = {}
 
     def __str__(self):
         return f"Soldier: {self._ID}, Country: {self._country}, Waypoint: {self._curr_waypoint}"
+
+    def draw(self, screen, camera):
+        screen_rect = camera.translate_rect(self._rect)
+
+        if self._frame >= 3:    # Reset the frames once its reached max
+            self._frame = 0
+
+        img = self._animations["walking"][self._curr_direction][self._frame]
+        img_rect = img.get_rect()
+        img_rect.center = screen_rect.center
+        screen.blit(img, img_rect)
+
+        if not self._timer.is_started():
+            self._timer.start()
+
+        if self._timer.is_finished(self._animation_cooldown):
+            print(self._frame)
+            self._frame += 1
+            self._timer.reset()
+
+    def _set_animations(self):
+        animations = {}
+        image_list = self._sprite.get_sprite_list(4, 3, 64, 64, 2, (0, 0, 0))
+
+        animations["walking"] = {
+            Direction.DEFAULT: [image_list[0]],
+            Direction.UP: image_list[3:6],
+            Direction.DOWN: image_list[0:3],
+            Direction.LEFT: image_list[9:12],
+            Direction.RIGHT: image_list[6:9]
+        }
+
+        return animations
 
     def act(self, mouse_pos):
         super().act(mouse_pos)
@@ -269,18 +324,18 @@ class Soldier(NPC):
         self._morale_bar.kill()
 
     def _detect_enemies(self):
-        if not self._idle:
+        if self._curr_state != NPCState.IDLE:
             for actor in self._actors:
                 if isinstance(actor, Soldier):
                     if actor.get_country() != self._country:
                         enemy = self._is_enemy_near(actor)
 
                         if enemy is not None:  # Enemy is near, stop moving and engage
-                            self._engaged = True
+                            self._curr_state = NPCState.ENGAGED
                             self._enemy_lock = enemy
                             self._attack()
                         else:  # No enemy is in sight act normal
-                            self._engaged = False
+                            self._curr_state = NPCState.IDLE
                             self._enemy_lock = None
 
     def _attack(self):
@@ -295,7 +350,7 @@ class Soldier(NPC):
             moving = 30
 
             # Negative factors contributing to the shot chance
-            if self._moving:
+            if self._curr_state == NPCState.ENGAGED:
                 self._shot_chance -= moving
 
             # Measuring the chances against random num
@@ -313,7 +368,7 @@ class Soldier(NPC):
         state = self._trench_path.get("state")
         comm_trench = self._trench_path.get("comm")
 
-        if state == "moving_to_comm" and not self._moving:
+        if state == "moving_to_comm" and self._curr_state != NPCState.ENGAGED:
             self._trench_path["state"] = "in_comm_trench"
 
             self.set_curr_trench(comm_trench)
@@ -334,11 +389,8 @@ class Soldier(NPC):
             self.set_next_waypoint_graph(target_trench.get_waypoint_graph())
 
             self._trench_path.clear()
-            self.set_idle(True)
 
     def switch_trenches(self, target_trench):
-        self._idle = False
-
         self._trench_path["target"] = target_trench
         self._trench_path["comm"] = target_trench.get_comm_trenches()[0]
         self._trench_path["state"] = "moving_to_comm"
@@ -450,6 +502,7 @@ class FightingDirection(Enum):
 
 
 class Country(Enum):
+    # Need to implement the sprite sheet as a reference
     BRITAIN = {
         "colour": pygame.color.Color(107, 94, 65),
         "fighting_direction": FightingDirection.WEST
@@ -460,5 +513,6 @@ class Country(Enum):
     }
 
 
-class WeaponType(Enum):
-    pass
+class NPCState(enum.Enum):
+    ENGAGED = 0
+    IDLE = 2

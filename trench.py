@@ -33,7 +33,7 @@ class Trench(Actor):
         self._start_line_two = self._rect.topright
         self._end_line_two = self._rect.bottomright
 
-        self._line_list = []
+        self._line_list = {}
         self._comm_trenches = []
 
         self._waypoint_graph = Graph(self._width, height, 20)
@@ -43,37 +43,46 @@ class Trench(Actor):
         self._npc_list = npc_list
 
     def draw(self, screen, camera):
+        for key, (start_point, end_point) in self._line_list.items():
+
+            screen_from_coord = camera.translate_coord(start_point)
+            screen_to_coord = camera.translate_coord(end_point)
+
+            pygame.draw.line(screen, self._outline_colour, screen_from_coord, screen_to_coord, 4)
+
         screen_rect = camera.translate_rect(self._rect)
-
-        screen_start_line_one = camera.translate_coord(self._start_line_one)
-        screen_end_line_one = camera.translate_coord(self._end_line_one)
-
-        screen_start_line_two = camera.translate_coord(self._start_line_two)
-        screen_end_line_two = camera.translate_coord(self._end_line_two)
-
-        # Draw the outline of the trench
-        pygame.draw.line(screen, self._outline_colour, screen_start_line_one, screen_end_line_one, 10)
-        pygame.draw.line(screen, self._outline_colour, screen_start_line_two, screen_end_line_two, 10)
-        # Drawing the trench's ground
         pygame.draw.rect(screen, self._ground_colour, screen_rect)
-
-        self._waypoint_graph.draw(screen, camera)
+        # self._waypoint_graph.draw(screen, camera)
 
     def _build_sandbags(self, group):
-        image_path = "assets/images/sandbag_normal.png"
+        for key, (start_point, end_point) in self._line_list.items():
 
-        for start_line, end_line in self._lines:
-            current_y = start_line[1]
+            is_vertical = start_point[0] == end_point[0]
+            is_horizontal = start_point[1] == end_point[1]
 
-            while current_y < end_line[1]:
-                new_x = start_line[0]
+            if is_vertical:
+                start_y = min(start_point[1], end_point[1])
+                end_y = max(start_point[1], end_point[1])
 
-                new_sandbag = Sandbag(image_path, Coordinate(new_x, current_y), 70, 70, group, 10)
-                self._sandbag_list.append(new_sandbag)
+                current_y = start_y
 
-                spaced = random.randint(18, 20)
+                while current_y < end_y:
+                    new_sandbag = Sandbag(Sandbag.IMAGE_PATH, 0, Coordinate(start_point[0], current_y), 70, 70, group, 10)
 
-                current_y += spaced
+                    self._sandbag_list.append(new_sandbag)
+                    current_y += random.randint(18, 20)
+
+            elif is_horizontal:
+                start_x = min(start_point[0], end_point[0])
+                end_x = max(start_point[0], end_point[0])
+
+                current_x = start_x
+
+                while current_x < end_x:
+                    new_sandbag = Sandbag(Sandbag.IMAGE_PATH, 90, Coordinate(current_x, start_point[1]), 70, 70, group, 10)
+
+                    self._sandbag_list.append(new_sandbag)
+                    current_x += random.randint(18, 20)
 
     def act(self, mouse_pos):
         self._update_curr_soldiers()
@@ -97,14 +106,9 @@ class Trench(Actor):
 
     def _check_hover(self):
         if self._select:
-            self._outline_colour = (255, 0, 0)
-        elif self._hover:
-            self._outline_colour = (255, 255, 255)
+            self._ground_colour = (90, 90, 90)
         else:
-            self._outline_colour = (207, 185, 151)
-
-    def calc_entrance_points(self):
-        pass
+            self._ground_colour = (48, 35, 9)
 
     def add_comm_trenches(self, comm_trench):
         self._comm_trenches.append(comm_trench)
@@ -122,21 +126,8 @@ class Trench(Actor):
         finish_line_one = self._rect.bottomleft
         finish_line_two = self._rect.bottomright
 
-        self._lines = [
-            (start_line_one, finish_line_one),  # Left vertical line
-            (start_line_two, finish_line_two)  # Right vertical line
-        ]
-
-        self._perimeter_points = []
-
-        for (start_x, start_y), (finish_x, finish_y) in self._lines:
-            if start_x == finish_x:
-                for y in range(min(start_y, finish_y), max(start_y, finish_y)):
-                    self._perimeter_points.append((start_x, y))
-
-            elif start_y == finish_y:
-                for x in range(min(start_x, finish_x), max(start_x, finish_x)):
-                    self._perimeter_points.append((x, start_y))
+        self._line_list["line_one"] = [start_line_one, finish_line_one]
+        self._line_list["line_two"] = [start_line_two, finish_line_two]
 
     def set_debug(self, debug):
         self._waypoint_graph.set_debug(debug)
@@ -219,15 +210,6 @@ class CommunicationTrench(Trench):
         self._waypoint_graph = Graph(self._width, self._height, 20)
         self._waypoint_graph.build(self._line_x, self._line_y)
 
-    def draw(self, screen, camera):
-        for from_coord, to_coord in self._lines:
-            screen_from_coord = camera.translate_coord(from_coord)
-            screen_to_coord = camera.translate_coord(to_coord)
-
-            pygame.draw.line(screen, self._outline_colour, screen_from_coord, screen_to_coord, 4)
-
-        self._waypoint_graph.draw(screen, camera)
-
     def _build_lines(self):
         line_start = None
         line_start_bottom = None
@@ -249,12 +231,17 @@ class CommunicationTrench(Trench):
         line_one_start = line_start[0], mid_y
         line_one_end = line_end[0], mid_y
 
-        line_two_start = line_one_start[0], line_one_start[1] - 20
-        line_two_end = line_one_end[0], line_one_end[1] - 20
+        self._height = 30
 
-        self._lines = [[line_one_start, line_one_end], [line_two_start, line_two_end]]
+        line_two_start = line_one_start[0], line_one_start[1] - self._height
+        line_two_end = line_one_end[0], line_one_end[1] - self._height
 
-        self._calc_diameter()
+        self._line_list["line_one"] = [line_one_start, line_one_end]
+        self._line_list["line_two"] = [line_two_start, line_two_end]
+
+        temp_lines_list = [[line_one_start, line_one_end], [line_two_start, line_two_end]]
+
+        self._calc_diameter(temp_lines_list)
 
         entrance_one = self._rect.topleft
         entrance_two = self._rect.topright
@@ -262,15 +249,14 @@ class CommunicationTrench(Trench):
         self._entrance_points["left_entrance"] = entrance_one
         self._entrance_points["right_entrance"] = entrance_two
 
-    def _calc_diameter(self):
-        line_one_start, line_one_end = self._lines[0]
-        line_two_start, line_two_end = self._lines[1]
+    def _calc_diameter(self, temp_lines_list):
+        line_one_start, line_one_end = temp_lines_list[0]
+        line_two_start, line_two_end = temp_lines_list[1]
 
         left_x = min(line_one_start[0], line_one_end[0])
         top_y = min(line_one_start[1], line_two_start[1])
 
         self._width = abs(line_one_start[0] - line_one_end[0])
-        self._height = 20
 
         self._rect = pygame.Rect(left_x, top_y, self._width, self._height)
 

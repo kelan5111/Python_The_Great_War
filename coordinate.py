@@ -61,6 +61,7 @@ class Coordinate:
 
 
 class Direction(Enum):
+    DEFAULT = (0, 0)
     UP = (0, 1)
     DOWN = (0, -1)
     LEFT = (-1, 0)

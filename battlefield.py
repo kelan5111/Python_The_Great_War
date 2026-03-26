@@ -3,7 +3,7 @@ import random
 
 from waypoint import Graph
 from coordinate import Coordinate, Direction
-from npc import Soldier, Country, FightingDirection, Gunner, NPC
+from npc import Soldier, Country, FightingDirection, Gunner, NPC, NPCState
 from weapon_resources import Gun, Artillery
 from game_mechanics import (NPCGroup, WeaponGroup, ParticleGroup, UIGroup,
                             Timer, Camera, ParticleGroup, EnvironmentGroup)
@@ -170,7 +170,7 @@ class Battlefield:
                 gunner = Gunner(starting_pos, 0, 20, self._field_waypoints, country, self._npc_group, morale_bar)
 
                 morale_bar.set_npc(gunner)
-                gunner.set_idle(False)
+                gunner.set_curr_state(NPCState.ENGAGED)
                 gunner.set_weapon(artillery)
 
                 artillery.add_soldier(gunner)
@@ -198,7 +198,6 @@ class Battlefield:
         support_line_east.add_comm_trenches(communication_trench_east)
         front_line_west.add_comm_trenches(communication_trench_west)
         support_line_west.add_comm_trenches(communication_trench_west)
-
 
         self._trenches["front_line"] = {"west": front_line_west, "east": front_line_east}
         self._trenches["support_line"] = {"west": support_line_west, "east": support_line_east}
@@ -244,7 +243,6 @@ class Battlefield:
 
                             for trench in selectable_trenches:
                                 if trench.has_collided(camera_mouse_pos):
-                                    npc.set_debug_mode(True)
                                     npc.switch_trenches(trench)
 
                                     trench.set_select(False)

@@ -4,10 +4,14 @@ from game_mechanics import Actor
 
 
 class Fortifications(Actor):
-    def __init__(self, image_path, coord, width, height, group, protection_factor):
+    def __init__(self, image_path, rotate_angle, coord, width, height, group, protection_factor):
         super().__init__(coord, width, height, group)
 
         self._image = pygame.transform.scale(pygame.image.load(image_path), (width, height))
+
+        if rotate_angle > 0:
+            self._image = pygame.transform.rotate(self._image, rotate_angle)
+
         self._rect = self._image.get_rect()
 
         self._protection_factor = protection_factor
@@ -27,6 +31,7 @@ class Fortifications(Actor):
 
 
 class Sandbag(Fortifications):
-    def __init__(self, image_path, coord, width, height, group, protection_factor):
-        super().__init__(image_path, coord, width, height, group, protection_factor)
+    IMAGE_PATH = "assets/images/sandbag_normal.png"
 
+    def __init__(self, image_path, rotate, coord, width, height, group, protection_factor):
+        super().__init__(image_path, rotate, coord, width, height, group, protection_factor)

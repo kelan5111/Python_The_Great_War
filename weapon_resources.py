@@ -29,9 +29,6 @@ class Weapon(Actor):
         pass
 
     def draw(self, screen, camera):
-        screen_rect = camera.translate_rect(self._rect)
-        pygame.draw.rect(screen, self._colour, screen_rect)
-
         self._update_projectile(screen, camera)
 
     def act(self, *args):
@@ -89,7 +86,10 @@ class Artillery(Weapon):
         self._barrage_coord = None
 
     def draw(self, screen, camera):
-        super().draw(screen, camera)
+        screen_rect = camera.translate_rect(self._rect)
+        pygame.draw.rect(screen, self._colour, screen_rect)
+
+        self._update_projectile(screen, camera)
 
     def act(self, mouse_pos):
         super().act()
