@@ -329,8 +329,6 @@ class Shell(Projectile):
             # Draw the shell circle
             pygame.draw.circle(screen, self._colour, screen_coord, self._radius)
 
-            print("Incoming...")
-
             if (len(self._nearby_soldiers) > 0 and
                     not self._played_incoming_sound):
                 self._incoming_sound.play()
@@ -362,7 +360,6 @@ class Shell(Projectile):
                 self._timer.start()
 
             if self._timer.is_finished(self._explosion_sound.get_length()):
-                print("Exploded...")
                 self._alive = False
 
     def _check_npc_deaths(self):
@@ -404,6 +401,6 @@ class Shell(Projectile):
 
 
 class MoraleLoss(enum.Enum):
-    LOW = 1
-    MEDIUM = 2
-    HIGH = 3
+    LOW = 2
+    MEDIUM = 4
+    HIGH = 6

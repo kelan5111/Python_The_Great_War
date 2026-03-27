@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import pygame
 
 from coordinate import Coordinate
-from game_mechanics import Actor
+from game_mechanics import Actor, Timer
 from npc import Soldier, FightingDirection
 from waypoint import Graph
 from fortifications import Sandbag
@@ -42,6 +42,8 @@ class Trench(Actor):
         self._curr_soldiers = []
         self._npc_list = npc_list
 
+        self._debug = False
+
     def draw(self, screen, camera):
         for key, (start_point, end_point) in self._line_list.items():
 
@@ -52,7 +54,9 @@ class Trench(Actor):
 
         screen_rect = camera.translate_rect(self._rect)
         pygame.draw.rect(screen, self._ground_colour, screen_rect)
-        # self._waypoint_graph.draw(screen, camera)
+
+        if self._debug:
+            self._waypoint_graph.draw(screen, camera)
 
     def _build_sandbags(self, group):
         for key, (start_point, end_point) in self._line_list.items():
@@ -100,6 +104,8 @@ class Trench(Actor):
         for npc in self._npc_list:
             if self.has_collided(npc):
                 self._curr_soldiers.append(npc)
+
+                npc.set_curr_trench(self)
 
             if npc in self._curr_soldiers and not self.has_collided(npc):
                 self._curr_soldiers.remove(npc)
@@ -169,29 +175,52 @@ class SupportTrench(Trench, ABC):
         super().__init__(coord, width, height, total_capacity, country, ground_colour, npc_actors, group)
 
         self._build(group)
+        self._reinforcement_timer = Timer()
+
+        self._reinforcement = []
 
     def act(self, mouse_pos):
         super().act(mouse_pos)
 
-        self._monitor_troops()
+        self._monitor_npc()
 
     def recruit(self):
         pass
 
-    def _monitor_troops(self):
-        self._check_transfer_troops()
+    def _monitor_npc(self):
+        self._monitor_reinforcement()
 
-    def _check_transfer_troops(self):
+    def _monitor_reinforcement(self):
         comm_trench = self._comm_trenches[0]
         support_line_trench, front_line_trench = comm_trench.get_connected_trenches()
 
         flt_curr_soldiers = front_line_trench.get_curr_soldiers()
 
-        if len(flt_curr_soldiers) < front_line_trench.get_max_capacity():
+        if (len(flt_curr_soldiers) < front_line_trench.get_max_capacity() and
+                len(self._curr_soldiers) > 0):
+
             rand_soldier = random.choice(self._curr_soldiers)
 
-            if not rand_soldier.is_moving():
-                rand_soldier.switch_trenches(front_line_trench)
+            if rand_soldier not in self._reinforcement:
+                self._reinforcement.append(rand_soldier)
+
+            for soldier in self._reinforcement:
+                if self._reinforcement_cooldown(4):
+                    if rand_soldier.is_idle():
+                        rand_soldier.switch_trenches(front_line_trench)
+
+                        self._curr_soldiers.remove(rand_soldier)
+                        self._reinforcement.remove(soldier)
+
+    def _reinforcement_cooldown(self, secs):
+        if not self._reinforcement_timer.is_started():
+            self._reinforcement_timer.start()
+
+        if self._reinforcement_timer.is_finished(secs):
+            self._reinforcement_timer.reset()
+            return True
+
+        return False
 
 
 class CommunicationTrench(Trench):
@@ -205,6 +234,8 @@ class CommunicationTrench(Trench):
         self._width = 20
 
         self._entrance_points = {}
+
+        self._max_capacity = total_capacity
 
         self._build(group)
         self._waypoint_graph = Graph(self._width, self._height, 20)
@@ -262,6 +293,9 @@ class CommunicationTrench(Trench):
 
         self._line_x = (self._rect.left, self._rect.right)
         self._line_y = (self._rect.top, self._rect.bottom)
+
+    def _monitor_npc(self):
+        pass
 
     def get_entrance_points(self):
         return self._entrance_points

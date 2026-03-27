@@ -1,4 +1,5 @@
 import pygame
+import random
 from queue import Queue
 
 from coordinate import Coordinate
@@ -121,9 +122,8 @@ class Graph:
                         current_node.add_neighbour(temp[poss_col][poss_row])
 
     def draw(self, screen, camera):
-        if self._debug:
-            for node in self._nodes:
-                node.draw(screen, camera)
+        for node in self._nodes:
+            node.draw(screen, camera)
 
     def _breadth_first_search(self, start, waypoint_id):
         if start is None:  # If there isn't a start pos (start of game)
@@ -203,7 +203,10 @@ class Graph:
 
         return closest_waypoint
 
-    def set_debug(self, debug=False):
+    def get_random_waypoint(self):
+        return random.choice(self._nodes)
+
+    def set_debug(self, debug):
         self._debug = debug
 
     def get_nodes(self):

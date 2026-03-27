@@ -51,7 +51,7 @@ class Battlefield:
         self._npc_group.draw(self._world_camera)
         self._weapon_group.draw(self._world_camera)
 
-        self._field_waypoints.draw(self._screen, self._world_camera)
+        #self._field_waypoints.draw(self._screen, self._world_camera)
 
     def act(self, raw_mouse_pos, dt):
         camera_mouse_pos = self._world_camera.translate_mouse_pos(raw_mouse_pos)
