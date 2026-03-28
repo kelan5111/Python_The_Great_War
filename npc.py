@@ -6,7 +6,7 @@ from enum import Enum
 from coordinate import Coordinate, Direction
 from abc import ABC, abstractmethod
 
-from game_gui import SpriteSheet
+from sprite_resources import SpriteSheet
 from game_mechanics import Actor, Timer
 import random
 
@@ -21,7 +21,7 @@ class NPC(Actor):
         self._width = NPC.SIZE
         self._height = NPC.SIZE
         self._country = country
-        self._colour = country.value["colour"]
+        self._colour = (255, 0, 0)
         self._border_colour = (0, 0, 0)
         self._regiment_colour = (0, 0, 0)
         self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
@@ -291,7 +291,7 @@ class Soldier(NPC):
         self._shot_chance = 100
         self._shell_shocked = False
 
-        self._sprite = SpriteSheet("assets/images/sprite_sheets/soldier_british_walk-Sheet.png")
+        self._sprite = SpriteSheet(self._country.value["sprite_sheet_path"])
         self._animations = self._set_animations()
         self._animation_cooldown = 0.5
         self._frame = 0
@@ -501,18 +501,23 @@ class SpecialForces(Soldier):
 class Gunner(SpecialForces):
     def __init__(self, coord, width, height, curr_waypoint_graph, country, group, morale_bar):
         super().__init__(coord, width, height, curr_waypoint_graph, country, group, morale_bar)
-
         self._regiment_colour = (0, 0, 153)
         self._world_coord = coord
+
+        self.curr_state = NPCState.ENGAGED
 
     def act(self, mouse_pos):
         super().act(mouse_pos)
 
-        if self._weapon is not None:
+        if self.has_weapon():
             self._weapon.shoot_random_projectile(self._actors)
+            self._lock_to_weapon()
 
     def _monitor_select(self):
         pass
+
+    def _lock_to_weapon(self):
+        self._world_coord = self._weapon.get_coord()
 
 
 class FightingDirection(Enum):
@@ -529,11 +534,11 @@ class FightingDirection(Enum):
 class Country(Enum):
     # Need to implement the sprite sheet as a reference
     BRITAIN = {
-        "colour": pygame.color.Color(107, 94, 65),
+        "sprite_sheet_path": "assets/images/sprite_sheets/british_soldier_walk-Sheet.png",
         "fighting_direction": FightingDirection.WEST
     }
     GERMANY = {
-        "colour": pygame.color.Color(75, 83, 72),
+        "sprite_sheet_path": "assets/images/sprite_sheets/german_soldier_walk-Sheet.png",
         "fighting_direction": FightingDirection.EAST
     }
 

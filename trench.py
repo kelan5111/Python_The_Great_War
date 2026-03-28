@@ -25,7 +25,7 @@ class Trench(Actor):
 
         self._boarder_rect = pygame.Rect(coord.get_coord(), (self._width, height))
 
-        self._line_x = self._rect.topleft[0] - 10, self._rect.topright[0]
+        self._line_x = self._rect.topleft[0], self._rect.topright[0]
         self._line_y = self._rect.topleft[1], self._rect.bottomleft[1]
 
         self._start_line_one = self._rect.topleft
