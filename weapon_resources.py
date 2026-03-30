@@ -294,19 +294,21 @@ class Shell(Projectile):
         self._distance_from_player = None
 
         self._sprite_sheet = SpriteSheet("assets/images/sprite_sheets/artillery_smoke-Sheet.png")
-        self._explosion_animation = self._set_animations()
+        self._smoke_animation = []
         self._animation_cooldown = 1
         self._animation_timer = Timer()
         self._frame = 0
-
         self._nearby_soldiers = []
 
         self._explosion_sound = pygame.mixer.Sound("assets/audio/artillery_explosion.wav")
         self._incoming_sound = pygame.mixer.Sound("assets/audio/incoming_explosion.wav")
         self._timer = Timer()
 
-    def _draw_explosion_animation(self, screen, screen_coord):
-        img = self._explosion_animation[self._frame]
+        self._build_animations()
+
+    def _draw_smoke_animation(self, screen, screen_coord):
+        img = self._smoke_animation[self._frame]
+
         img_rect = img.get_rect()
         img_rect.center = screen_coord
         screen.blit(img, img_rect)
@@ -314,15 +316,29 @@ class Shell(Projectile):
         if self._frame < 16:
             self._frame += 1
 
-    def _set_animations(self):
-        scale = self._radius // 2
+    def _rotate_smoke_images(self):
+        rand_dir = random.randint(0, 1)
+        rand_angle = 0
 
-        sprite_sheet = self._sprite_sheet.get_sprite_list(
+        if rand_dir == 0:
+            rand_angle = random.randint(0, 20)
+        elif rand_dir == 1:
+            rand_angle = random.randint(-20, 0)
+
+        for frame in range(len(self._smoke_animation)):
+            self._smoke_animation[frame] = pygame.transform.rotate(
+                self._smoke_animation[frame], rand_angle
+            ).convert_alpha()
+
+    def _build_animations(self):
+        scale = 3
+
+        self._smoke_animation = self._sprite_sheet.get_sprite_list(
             1, 17, 64,
             64, scale, (0, 0, 0)
         )
 
-        return sprite_sheet
+        self._rotate_smoke_images()
 
     def update(self, screen, camera):
         super().update(screen, camera)
@@ -381,7 +397,7 @@ class Shell(Projectile):
         if self._curr_state == ShellState.HIT:
             self._incoming_blast = False
 
-            self._draw_explosion_animation(screen, screen_coord)
+            self._draw_smoke_animation(screen, screen_coord)
 
             if not self._played_explosion_sound:
                 self._calc_shell_shock()
