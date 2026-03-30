@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 
 from coordinate import Coordinate
 from npc import FightingDirection
+from particles import Particle, Smoke
 from sprite_resources import SpriteSheet
 from game_mechanics import Actor, Timer
 
@@ -50,7 +51,7 @@ class Weapon(Actor):
     @abstractmethod
     def _update_projectile(self, screen, camera):
         for p in self._active_projectile:
-            p.update(screen, camera)
+            p.update(screen)
 
     def set_owner(self, owner):
         self._owner = owner
@@ -217,10 +218,29 @@ class Projectile:
         self._alive = True
         self._targets_hit = []
 
+        self._particles = {}
+
+    def draw(self, screen, camera):
+        self._draw_particles(screen, camera)
+
     def update(self, screen, screen_coord):
         if self._alive:
             self._move()
             self._check_targets_hit()
+
+            self._update_particles()
+
+    @abstractmethod
+    def _build_particles(self):
+        pass
+
+    def _draw_particles(self, screen, camera):
+        for particle in self._particles.values():
+            particle.draw(screen, camera)
+
+    def _update_particles(self):
+        for particle in self._particles.values():
+            particle.update()
 
     def _move(self):
         if not self._hit:
@@ -270,6 +290,12 @@ class Bullet(Projectile):
     def draw(self, screen, camera):
         pass
 
+    def update(self, screen, camera):
+        pass
+
+    def _build_particles(self):
+        pass
+
     def _check_targets_hit(self):
         pass
 
@@ -293,52 +319,12 @@ class Shell(Projectile):
         self._curr_state = ShellState.INACTIVE
         self._distance_from_player = None
 
-        self._sprite_sheet = SpriteSheet("assets/images/sprite_sheets/artillery_smoke-Sheet.png")
-        self._smoke_animation = []
-        self._animation_cooldown = 1
-        self._animation_timer = Timer()
-        self._frame = 0
         self._nearby_soldiers = []
+        self._build_particles()
 
         self._explosion_sound = pygame.mixer.Sound("assets/audio/artillery_explosion.wav")
         self._incoming_sound = pygame.mixer.Sound("assets/audio/incoming_explosion.wav")
         self._timer = Timer()
-
-        self._build_animations()
-
-    def _draw_smoke_animation(self, screen, screen_coord):
-        img = self._smoke_animation[self._frame]
-
-        img_rect = img.get_rect()
-        img_rect.center = screen_coord
-        screen.blit(img, img_rect)
-
-        if self._frame < 16:
-            self._frame += 1
-
-    def _rotate_smoke_images(self):
-        rand_dir = random.randint(0, 1)
-        rand_angle = 0
-
-        if rand_dir == 0:
-            rand_angle = random.randint(0, 20)
-        elif rand_dir == 1:
-            rand_angle = random.randint(-20, 0)
-
-        for frame in range(len(self._smoke_animation)):
-            self._smoke_animation[frame] = pygame.transform.rotate(
-                self._smoke_animation[frame], rand_angle
-            ).convert_alpha()
-
-    def _build_animations(self):
-        scale = 3
-
-        self._smoke_animation = self._sprite_sheet.get_sprite_list(
-            1, 17, 64,
-            64, scale, (0, 0, 0)
-        )
-
-        self._rotate_smoke_images()
 
     def update(self, screen, camera):
         super().update(screen, camera)
@@ -397,8 +383,6 @@ class Shell(Projectile):
         if self._curr_state == ShellState.HIT:
             self._incoming_blast = False
 
-            self._draw_smoke_animation(screen, screen_coord)
-
             if not self._played_explosion_sound:
                 self._calc_shell_shock()
                 self._check_npc_deaths()
@@ -406,7 +390,7 @@ class Shell(Projectile):
                 self._explosion_sound.play()
                 self._played_explosion_sound = True
 
-            if self._frame >= 16:
+            if self._particles["smoke"].get_frame() >= 16:
                 if self._sleep_cooldown(1.5):
                     self._frame = 0
 
@@ -416,6 +400,9 @@ class Shell(Projectile):
         if self._curr_state == ShellState.EXPLODED:
             self._curr_state = ShellState.INACTIVE
             self._alive = False
+
+    def _build_particles(self):
+        self._particles["smoke"] = Smoke(10, 10, 5, 5, 16)
 
     def _check_npc_deaths(self):
         if len(self._nearby_soldiers) > 0:
