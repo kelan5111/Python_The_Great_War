@@ -51,7 +51,7 @@ class Weapon(Actor):
     @abstractmethod
     def _update_projectile(self, screen, camera):
         for p in self._active_projectile:
-            p.update(screen)
+            p.update(screen, camera)
 
     def set_owner(self, owner):
         self._owner = owner
@@ -220,27 +220,10 @@ class Projectile:
 
         self._particles = {}
 
-    def draw(self, screen, camera):
-        self._draw_particles(screen, camera)
-
     def update(self, screen, screen_coord):
         if self._alive:
             self._move()
             self._check_targets_hit()
-
-            self._update_particles()
-
-    @abstractmethod
-    def _build_particles(self):
-        pass
-
-    def _draw_particles(self, screen, camera):
-        for particle in self._particles.values():
-            particle.draw(screen, camera)
-
-    def _update_particles(self):
-        for particle in self._particles.values():
-            particle.update()
 
     def _move(self):
         if not self._hit:
@@ -290,12 +273,6 @@ class Bullet(Projectile):
     def draw(self, screen, camera):
         pass
 
-    def update(self, screen, camera):
-        pass
-
-    def _build_particles(self):
-        pass
-
     def _check_targets_hit(self):
         pass
 
@@ -320,6 +297,7 @@ class Shell(Projectile):
         self._distance_from_player = None
 
         self._nearby_soldiers = []
+        self._particles = {}
         self._build_particles()
 
         self._explosion_sound = pygame.mixer.Sound("assets/audio/artillery_explosion.wav")
@@ -383,6 +361,9 @@ class Shell(Projectile):
         if self._curr_state == ShellState.HIT:
             self._incoming_blast = False
 
+            self._particles["smoke"].update()
+            self._particles["smoke"].draw(screen, screen_coord)
+
             if not self._played_explosion_sound:
                 self._calc_shell_shock()
                 self._check_npc_deaths()
@@ -402,7 +383,7 @@ class Shell(Projectile):
             self._alive = False
 
     def _build_particles(self):
-        self._particles["smoke"] = Smoke(10, 10, 5, 5, 16)
+        self._particles["smoke"] = Smoke(10, 10, 5, 5, 16, 0.05)
 
     def _check_npc_deaths(self):
         if len(self._nearby_soldiers) > 0:
