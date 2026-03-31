@@ -10,6 +10,8 @@ class Particle:
 
         self._speed = speed
         self._lifetime = lifetime
+        self._alpha = 255
+        self._lifetime_timer = Timer()
         self._rotation = angle
 
         self._sprite_sheet = None
@@ -74,8 +76,17 @@ class Particle:
 
         return False
 
+    def start_fading(self):
+        if self._alpha > 0:
+            self._alpha -= 50
+
+        self._curr_img.set_alpha(self._alpha)
+
     def get_frame(self):
         return self._frame
+
+    def get_alpha(self):
+        return self._alpha
 
 
 class Smoke(Particle):

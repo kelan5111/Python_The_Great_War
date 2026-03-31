@@ -372,14 +372,18 @@ class Shell(Projectile):
                 self._played_explosion_sound = True
 
             if self._particles["smoke"].get_frame() >= 16:
-                if self._sleep_cooldown(1.5):
-                    self._frame = 0
+                if self._sleep_cooldown(0.25):
+                    self._particles["smoke"].start_fading()
 
-                    self._curr_state = ShellState.EXPLODED
+                    if self._particles["smoke"].get_alpha() <= 0:
+                        self._alive = False
+                        self._frame = 0
+                        self._curr_state = ShellState.EXPLODED
 
     def _monitor_explosion(self, screen, screen_coord):
         if self._curr_state == ShellState.EXPLODED:
             self._curr_state = ShellState.INACTIVE
+
             self._alive = False
 
     def _build_particles(self):
