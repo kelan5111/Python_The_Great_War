@@ -1,4 +1,5 @@
 import enum
+from typing import List
 
 import pygame
 from enum import Enum
@@ -488,6 +489,14 @@ class Soldier(NPC):
         return self._moving
 
 
+class Commander(Soldier):
+    def __init__(self, coord, width, height, curr_waypoint_graph, country, group, morale_bar, command_type):
+        super().__init__(coord, width, height, curr_waypoint_graph, country, group, morale_bar)
+
+        self._commander_rank: CommanderRank = command_type
+        self._unit: Unit = Unit()
+
+
 class SpecialForces(Soldier):
     def __init__(self, coord, width, height, curr_waypoint_graph, country, group, morale_bar):
         super().__init__(coord, width, height, curr_waypoint_graph, country, group, morale_bar)
@@ -518,6 +527,24 @@ class Gunner(SpecialForces):
 
     def _lock_to_weapon(self):
         self._world_coord = self._weapon.get_coord()
+
+
+class Unit:
+    def __init__(self):
+        self._unit = List[Soldier] = []
+
+    def move_all(self, target_coord):
+        for soldier in self._unit:
+            soldier.set_path(target_coord)
+
+    def add_soldier(self, soldier):
+        self._unit.append(soldier)
+
+    def remove_soldier(self, soldier):
+        self._unit.remove(soldier)
+
+    def get_soldier(self):
+        return self._unit
 
 
 class FightingDirection(Enum):
@@ -552,3 +579,15 @@ class NPCMood(enum.Enum):
     NEUTRAL = 1
     SCARED = 2
     ANGRY = 3
+
+
+class CommanderRank(enum.Enum):
+    SERGENT = 0
+    SECOND_LIEUTENANT = 1
+    LIEUTENANT = 2
+    CAPTAIN = 3
+    MAJOR = 4
+    COLONEL = 5
+
+
+
