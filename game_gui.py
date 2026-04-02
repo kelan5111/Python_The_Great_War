@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
+from typing import List
 
 import pygame
 
-import npc
+from npc import Soldier
 from coordinate import Coordinate
 from game_mechanics import Actor
 
@@ -72,7 +73,7 @@ class SelectBox(UserInterface):
 
     def _select_actors(self, npc_actors):
         for actor in npc_actors:
-            if isinstance(actor, npc.Soldier):
+            if isinstance(actor, Soldier):
                 if (self.has_collided(actor) and
                         actor.get_country() == self._country):
                     actor.set_select(True)
@@ -297,7 +298,7 @@ class Console(TextBox):
             "debug_field = true": lambda: field_waypoints.set_debug(True),
             "debug_trenches = false": lambda: [t.set_debug(False) for t in trench_list],
             "debug_field = false": lambda: field_waypoints.set_debug(False),
-            "remove_all_soldiers": lambda: group.remove_all(npc.Soldier),
+            "remove_all_soldiers": lambda: group.remove_all(Soldier),
             "debug_morale = true": lambda: [n.show_morale() for n in npc_list.get_actors()],
             "debug_morale = false": lambda: [n.hide_morale() for n in npc_list.get_actors()]
         }
@@ -314,64 +315,107 @@ class Console(TextBox):
         self._clear_text()
 
 
-class HUI(UserInterface):
-    def __init__(self, text, colour, coord, width, height, group):
+class ObjectBound(UserInterface):
+    def __init__(self, attached_obj, coord, width, height, group):
         super().__init__(coord, width, height, group)
 
-        self._npc = None
-        self._colour = colour
+        self._attached_obj = attached_obj
         self._outline_colour = (0, 0, 0)
-
-        self._text = text
-        self._font = pygame.font.SysFont("verdana", 5)  # load once
-        self._text_font = self._font.render(self._text, True, (0, 0, 0))
-        self._text_rect = self._text_font.get_rect()
 
     def act(self, mouse_pos):
         self._update_rect()
+        self._follow_obj()
 
-    def _update_rect(self):
-        self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
-
-    def _update_text(self, text):
-        self._text = text
-        self._text_font = (pygame.font.SysFont("verdana", 5).
-                           render(text, True, (0, 0, 0)))
-
-
-class MoraleBar(HUI):
-    def __init__(self, text, colour, coord, width, height, group):
-        super().__init__(text, colour, coord, width, height, group)
-
-        self._npc_morale = 0
-        self._morale_bar_rect = pygame.Rect(coord.get_coord(), (self._npc_morale, self._height))
-
-    def act(self, mouse_pos):
-        super().act(mouse_pos)
-
-        self._update_morale()
-        self._lock_to_npc()
-
-    def draw(self, screen, camera):
-        if self._show:
-            screen_rect = camera.translate_rect(self._morale_bar_rect)
-            pygame.draw.rect(screen, self._colour, screen_rect)
-            pygame.draw.rect(screen, self._outline_colour, screen_rect, 2)
-
-    def _update_morale(self):
-        self._npc_morale = self._npc.get_morale()
-
-        self._morale_bar_rect = pygame.Rect(self._world_coord.get_coord(),
-                                            (self._npc_morale, self._height))
-
-    def _lock_to_npc(self):
-        npc_center_x = self._npc.get_rect().centerx
-        npc_center_y = self._npc.get_rect().centery
+    def _follow_obj(self):
+        npc_center_x = self._attached_obj.get_rect().centerx
+        npc_center_y = self._attached_obj.get_rect().centery
 
         new_x = npc_center_x - self._width // 2
         new_y = (npc_center_y - self._height // 2) - self._height * 2
 
         self._world_coord = Coordinate(new_x, new_y)
 
-    def set_npc(self, n):
-        self._npc = n
+    def set_attached_obj(self, obj):
+        self._attached_obj = obj
+
+    def _update_rect(self):
+        self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
+
+
+class Bar(ObjectBound):
+    def __init__(self, attached_object, bar_colour, coord, width, height, group):
+        super().__init__(attached_object, coord, width, height, group)
+
+        self._bar_colour = bar_colour
+        self._bar_meter = width
+
+    def draw(self, screen, camera):
+        if self._show:
+            screen_rect = camera.translate_rect(self._rect)
+            pygame.draw.rect(screen, self._bar_colour, screen_rect)
+            pygame.draw.rect(screen, self._outline_colour, screen_rect, 2)
+
+    def _update_bar(self, bar_value):
+        self._rect = pygame.Rect(self._world_coord.get_coord(),
+                                 (bar_value, self._height))
+
+
+class ToolTip(ObjectBound): # I DONT WANT THIS ATTACHED I WANT IT IN CENTRE OF SCREEN
+    BASE_IMAGE_PATH = "assets/images/board_ui.png"
+
+    def __init__(self, attached_obj, coord, width, height, group):
+        super().__init__(attached_obj, coord, width, height, group)
+
+        self._contents = []
+
+        self._image = pygame.image.load(ToolTip.BASE_IMAGE_PATH)
+        self._rect = self._image.get_rect()
+
+    def draw(self, screen, camera):
+        if self._show:
+            screen_rect = camera.translate_rect(self._rect)
+            screen.blit(self._image, screen_rect)
+
+    def act(self, mouse_pos):
+        super().act(mouse_pos)
+
+        self._update_image()
+
+    def _update_image(self):
+        pygame.transform.scale(self._image, (self._width, self._height))
+
+
+class TextContent:
+    def __init__(self, text, text_colour, text_size):
+        self._text = text
+        self._text_colour = text_colour
+        self._text_size = text_size
+
+        self._font_obj = pygame.font.SysFont("verdana", text_size)
+        self._font = pygame.font.SysFont("verdana", text_size)
+        self._text_rect = self._font.get_rect()
+
+        self.update()
+
+    def draw(self, screen, camera):
+        screen.blit(self._font, self._text_rect)
+
+    def update(self):
+        self._font = self._font_obj.render(self._text, True, self._text_colour)
+        self._text_rect = self._font.get_rect()
+
+
+class IconContent:
+    def __init__(self, image_path):
+        self._image = pygame.image.load(image_path)
+        self._image_rect = self._image.get_rect()
+
+    def draw(self, screen, coord):
+        new_x = coord[0]
+        new_y = coord[1]
+
+        screen.blit(self._image, (new_x, new_y))
+        self._image_rect.topleft = (new_x, new_y)
+
+    def update(self):
+        self._image_rect = self._image.get_rect()

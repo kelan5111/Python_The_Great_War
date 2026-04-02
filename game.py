@@ -1,16 +1,4 @@
 import pygame
-import random
-
-from waypoint import Graph
-from coordinate import Coordinate, Direction
-from npc import Soldier, Country, FightingDirection, Gunner, NPC
-from weapon_resources import Gun, Artillery
-from game_mechanics import (NPCGroup, WeaponGroup, ParticleGroup, UIGroup,
-                            Timer, Camera, ParticleGroup, EnvironmentGroup)
-from game_gui import SelectBox, Button, InteractiveTab, Console, MoraleBar, Icon
-from trench import FrontLineTrench, SupportTrench, Trench, CommunicationTrench
-
-import pygame
 from battlefield import Battlefield
 
 

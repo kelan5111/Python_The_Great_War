@@ -17,7 +17,7 @@ class NPC(Actor):
     SPEED = 0.5
     SIZE = 15
 
-    def __init__(self, coord, width, height, waypoint_graph, country, group, morale_bar):
+    def __init__(self, coord, width, height, waypoint_graph, country, group):
         super().__init__(coord, width, height, group)
         self._width = NPC.SIZE
         self._height = NPC.SIZE
@@ -39,8 +39,10 @@ class NPC(Actor):
         self._actors = group.get_actors()
 
         self._morale = 100
-        self._morale_bar = morale_bar
+        self._morale_bar = None
         self._show_morale_bar = False
+
+        self._stats_tooltip = None
 
         self._curr_trench = None
         self._path = []
@@ -248,12 +250,6 @@ class NPC(Actor):
     def is_idle(self):
         return self._curr_state == NPCState.IDLE
 
-    def show_moral_bar(self):
-        self._morale_bar.set_show(True)
-
-    def hide_moral_bar(self):
-        self._morale_bar.set_show(False)
-
     def set_morale(self, morale):
         self._morale = morale
 
@@ -280,14 +276,20 @@ class NPC(Actor):
     def set_curr_state(self, curr_state):
         self._curr_state = curr_state
 
+    def set_morale_bar(self, morale_bar):
+        self._morale_bar = morale_bar
+
+    def set_stats_tooltip(self, tooltip):
+        self._stats_tooltip = tooltip
+
 
 class Soldier(NPC):
-    def __init__(self, coord, width, height, curr_waypoint_graph, country, group, morale_bar, weapon=None):
-        super().__init__(coord, width, height, curr_waypoint_graph, country, group, morale_bar)
+    def __init__(self, coord, width, height, curr_waypoint_graph, country, group):
+        super().__init__(coord, width, height, curr_waypoint_graph, country, group)
 
         self._country = country
         self._regiment_colour = self._colour
-        self._weapon = weapon
+        self._weapon = None
         self._enemy_lock = None
         self._shot_chance = 100
         self._shell_shocked = False
@@ -440,10 +442,15 @@ class Soldier(NPC):
 
     def set_select(self, select):
         if select:
-            self.show_moral_bar()
+            self._morale_bar.set_show(True)
+            self._stats_tooltip.set_show(True)
+
             self._debug = True
+
         elif not select and not self._shell_shocked:
-            self.hide_moral_bar()
+            self._morale_bar.set_show(False)
+            self._stats_tooltip.set_show(False)
+
             self._debug = False
 
         self._select = select
@@ -490,16 +497,19 @@ class Soldier(NPC):
 
 
 class Commander(Soldier):
-    def __init__(self, coord, width, height, curr_waypoint_graph, country, group, morale_bar, command_type):
-        super().__init__(coord, width, height, curr_waypoint_graph, country, group, morale_bar)
+    def __init__(self, coord, width, height, curr_waypoint_graph, country, group, command_rank):
+        super().__init__(coord, width, height, curr_waypoint_graph, country, group)
 
-        self._commander_rank: CommanderRank = command_type
-        self._unit: Unit = Unit()
+        self._commander_rank: CommanderRank = command_rank
+        self._unit: Unit = Unit(command_rank.value["max_unit"])
+
+        self._sprite = SpriteSheet("assets/images/sprite_sheets/british_commander_walk-Sheet.png")
+        self._animations = self._set_animations()
 
 
 class SpecialForces(Soldier):
-    def __init__(self, coord, width, height, curr_waypoint_graph, country, group, morale_bar):
-        super().__init__(coord, width, height, curr_waypoint_graph, country, group, morale_bar)
+    def __init__(self, coord, width, height, curr_waypoint_graph, country, group):
+        super().__init__(coord, width, height, curr_waypoint_graph, country, group)
 
         self._skill_lvl = 0
 
@@ -508,8 +518,8 @@ class SpecialForces(Soldier):
 
 
 class Gunner(SpecialForces):
-    def __init__(self, coord, width, height, curr_waypoint_graph, country, group, morale_bar):
-        super().__init__(coord, width, height, curr_waypoint_graph, country, group, morale_bar)
+    def __init__(self, coord, width, height, curr_waypoint_graph, country, group):
+        super().__init__(coord, width, height, curr_waypoint_graph, country, group)
         self._regiment_colour = (0, 0, 153)
         self._world_coord = coord
 
@@ -530,8 +540,9 @@ class Gunner(SpecialForces):
 
 
 class Unit:
-    def __init__(self):
-        self._unit = List[Soldier] = []
+    def __init__(self, max_unit):
+        self._unit: List[Soldier] = []
+        self._max_unit = max_unit
 
     def move_all(self, target_coord):
         for soldier in self._unit:
@@ -562,11 +573,15 @@ class Country(Enum):
     # Need to implement the sprite sheet as a reference
     BRITAIN = {
         "sprite_sheet_path": "assets/images/sprite_sheets/british_soldier_walk-Sheet.png",
-        "fighting_direction": FightingDirection.WEST
+        "fighting_direction": FightingDirection.WEST,
+        "country_img": "/assets/images/flags/uk.png",
+        "helmet_icon": "/assets/images/british_helmet.png"
     }
     GERMANY = {
         "sprite_sheet_path": "assets/images/sprite_sheets/german_soldier_walk-Sheet.png",
-        "fighting_direction": FightingDirection.EAST
+        "fighting_direction": FightingDirection.EAST,
+        "country": "/assets/images/flags/de.png",
+        "helmet_icon": "/assets/images/german_helmet.png"
     }
 
 
@@ -582,12 +597,12 @@ class NPCMood(enum.Enum):
 
 
 class CommanderRank(enum.Enum):
-    SERGENT = 0
-    SECOND_LIEUTENANT = 1
-    LIEUTENANT = 2
-    CAPTAIN = 3
-    MAJOR = 4
-    COLONEL = 5
+    CORPORAL = {"max_unit": 4}
+    SERGENT = {"max_unit": 8}
+    LIEUTENANT = {"max_unit": 50}
+    CAPTAIN = {"max_unit": 100}
+    MAJOR = {"max_unit": 300}
+    COLONEL = {"max_unit": 500}
 
 
 

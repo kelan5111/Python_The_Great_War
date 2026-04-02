@@ -1,14 +1,8 @@
-import pygame
-import random
-
-from waypoint import Graph
-from coordinate import Coordinate, Direction
-from npc import Soldier, Country, FightingDirection, Gunner, NPC, NPCState
-from weapon_resources import Gun, Artillery
-from game_mechanics import (NPCGroup, WeaponGroup, ParticleGroup, UIGroup,
-                            Timer, Camera, ParticleGroup, EnvironmentGroup)
-from game_gui import SelectBox, Button, InteractiveTab, Console, MoraleBar, Icon
-from trench import FrontLineTrench, SupportTrench, Trench, CommunicationTrench
+from game_gui import *
+from game_mechanics import *
+from npc import *
+from trench import *
+from weapon_resources import *
 
 
 class Battlefield:
@@ -51,7 +45,7 @@ class Battlefield:
         self._npc_group.draw(self._world_camera)
         self._weapon_group.draw(self._world_camera)
 
-        #self._field_waypoints.draw(self._screen, self._world_camera)
+        # self._field_waypoints.draw(self._screen, self._world_camera)
 
     def act(self, raw_mouse_pos, dt):
         camera_mouse_pos = self._world_camera.translate_mouse_pos(raw_mouse_pos)
@@ -94,26 +88,47 @@ class Battlefield:
 
     def _initialize_soldiers(self, num_soldiers):
         for fighting_direction in self._fighting_directions:
-            starting_trench = self._trenches["support_line"][fighting_direction.value["name"]]
+            starting_trench = self._trenches["front_line"][fighting_direction.value["name"]]
             starting_trench_prox = starting_trench.get_proximity()
 
-            for soldier_count in range(num_soldiers):
+            self._initialize_commanders(fighting_direction, starting_trench, starting_trench_prox)
 
+            for soldier_count in range(num_soldiers):
                 rand_x = random.randint(starting_trench_prox[0][0], starting_trench_prox[0][1])
                 rand_y = random.randint(starting_trench_prox[1][0], starting_trench_prox[1][1])
 
                 trench_waypoint_graph = starting_trench.get_waypoint_graph()
 
-                morale_bar = MoraleBar("", (62, 192, 105), Coordinate(0, 0), 10, 10, self._ui_group)
-                soldier = Soldier(Coordinate(rand_x, rand_y), 20, 20, trench_waypoint_graph, self._countries[fighting_direction.value["id"]],
-                                  self._npc_group, morale_bar)
+                soldier = Soldier(Coordinate(rand_x, rand_y), 20, 20, trench_waypoint_graph,
+                                  self._countries[fighting_direction.value["id"]],
+                                  self._npc_group)
 
                 bolt_action_rifle = Gun(Coordinate(500, 500), 10, 10, "none",
                                         10, 10, 10,
                                         self._weapon_group)
-
-                morale_bar.set_npc(soldier)
                 soldier.set_weapon(bolt_action_rifle)
+
+                self._initialize_npc_ui(soldier)
+
+    def _initialize_commanders(self, fighting_direction, starting_trench, starting_trench_prox):
+        for rank in CommanderRank:
+            rand_x = random.randint(starting_trench_prox[0][0], starting_trench_prox[0][1])
+            rand_y = random.randint(starting_trench_prox[1][0], starting_trench_prox[1][1])
+            new_coord = Coordinate(rand_x, rand_y)
+
+            trench_waypoint_graph = starting_trench.get_waypoint_graph()
+
+            commander = Commander(new_coord, 10, 10, trench_waypoint_graph,
+                                  self._countries[fighting_direction.value["id"]],
+                                  self._npc_group, rank)
+
+            pistol = Gun(Coordinate(500, 500), 10, 10, "none",
+                         10, 10, 10,
+                         self._weapon_group)
+
+            commander.set_weapon(pistol)
+
+            self._initialize_npc_ui(commander)
 
     def _initialize_artillery(self):
         spaced = 70
@@ -166,29 +181,41 @@ class Battlefield:
                                       friendly_sl_prox, friendly_fl_prox, enemy_sl_prox, enemy_fl_prox,
                                       self._weapon_group, self._field_waypoints, country)
 
-                morale_bar = MoraleBar("", (62, 192, 105), Coordinate(0, 0), 10, 10, self._ui_group)
-                gunner = Gunner(starting_pos, 0, 20, self._field_waypoints, country, self._npc_group, morale_bar)
+                gunner = Gunner(starting_pos, 0, 20, self._field_waypoints, country, self._npc_group)
 
-                morale_bar.set_npc(gunner)
                 gunner.set_curr_state(NPCState.ENGAGED)
                 gunner.set_weapon(artillery)
 
+                self._initialize_npc_ui(gunner)
+
                 artillery.add_soldier(gunner)
+
+    def _initialize_npc_ui(self, n):
+        morale_bar = Bar(n, (62, 192, 105), Coordinate(0, 0), 100, 10, self._ui_group)
+        n.set_morale_bar(morale_bar)
+
+        stats_tooltip = ToolTip(n, Coordinate(0, 0), 100, 100, self._ui_group)
+        n.set_stats_tooltip(stats_tooltip)
 
     def _initialize_trenches(self):
         space_between_fl_x = 100
         space_between_sl_x = -200
 
-        front_line_west = FrontLineTrench(Coordinate(space_between_fl_x, 0), 50, self._screen_height, 10, self._player_country,
+        front_line_west = FrontLineTrench(Coordinate(space_between_fl_x, 0), 50, self._screen_height, 10,
+                                          self._player_country,
                                           self._ground_colour, self._npc_group.get_actors(), self._environment_group)
-        support_line_west = SupportTrench(Coordinate(space_between_sl_x, 0), 50, self._screen_height, 50, self._player_country,
+        support_line_west = SupportTrench(Coordinate(space_between_sl_x, 0), 50, self._screen_height, 50,
+                                          self._player_country,
                                           self._ground_colour, self._npc_group.get_actors(), self._environment_group)
         communication_trench_west = CommunicationTrench(support_line_west, front_line_west, 0, Country.BRITAIN,
-                                                   self._ground_colour, self._npc_group.get_actors(), self._environment_group)
+                                                        self._ground_colour, self._npc_group.get_actors(),
+                                                        self._environment_group)
 
-        front_line_east = FrontLineTrench(Coordinate(self._screen_width - space_between_fl_x, 0), 50, self._screen_height, 10, Country.GERMANY,
+        front_line_east = FrontLineTrench(Coordinate(self._screen_width - space_between_fl_x, 0), 50,
+                                          self._screen_height, 10, Country.GERMANY,
                                           self._ground_colour, self._npc_group.get_actors(), self._environment_group)
-        support_line_east = SupportTrench(Coordinate(self._screen_width - space_between_sl_x, 0), 50, self._screen_height, 50, Country.GERMANY,
+        support_line_east = SupportTrench(Coordinate(self._screen_width - space_between_sl_x, 0), 50,
+                                          self._screen_height, 50, Country.GERMANY,
                                           self._ground_colour, self._npc_group.get_actors(), self._environment_group)
         communication_trench_east = CommunicationTrench(support_line_east, front_line_east, 0, Country.GERMANY,
                                                         self._ground_colour, self._npc_group.get_actors(),
@@ -226,7 +253,7 @@ class Battlefield:
                                 npc.has_collided(camera_mouse_pos)):
                             npc.set_select(True)
 
-                morale_bar = [actor for actor in self._ui_group.get_actors() if isinstance(actor, MoraleBar)]
+                morale_bar = [actor for actor in self._ui_group.get_actors() if isinstance(actor, Bar)]
 
                 for section in interactive_tab.get_sections():
                     if isinstance(section, Button):
@@ -237,9 +264,10 @@ class Battlefield:
                 for npc in self._npc_group.get_actors():
                     if isinstance(npc, Soldier):
                         if npc.has_selected():
-                            selectable_trenches = [self._trenches["front_line"][self._player_fighting_direction.value["name"]],
-                                                   self._trenches["support_line"][self._player_fighting_direction.value["name"]]
-                                                   ]
+                            selectable_trenches = [
+                                self._trenches["front_line"][self._player_fighting_direction.value["name"]],
+                                self._trenches["support_line"][self._player_fighting_direction.value["name"]]
+                                ]
 
                             for trench in selectable_trenches:
                                 if trench.has_collided(camera_mouse_pos):
@@ -303,5 +331,3 @@ class Battlefield:
             self._world_camera.update(Direction.RIGHT, dt)
         elif keys[pygame.K_a]:
             self._world_camera.update(Direction.LEFT, dt)
-
-
