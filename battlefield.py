@@ -41,9 +41,9 @@ class Battlefield:
 
         self._particle_group.draw(self._world_camera)
         self._environment_group.draw(self._world_camera)
-        self._ui_group.draw(self._world_camera)
         self._npc_group.draw(self._world_camera)
         self._weapon_group.draw(self._world_camera)
+        self._ui_group.draw(self._world_camera)
 
         # self._field_waypoints.draw(self._screen, self._world_camera)
 
@@ -63,8 +63,8 @@ class Battlefield:
 
         self._initialize_waypoints()
         self._initialize_trenches()
-        self._initialize_ui()
         self._initialize_soldiers(10)
+        self._initialize_ui()
         self._initialize_artillery()
 
     def _initialize_ui(self):
@@ -78,9 +78,6 @@ class Battlefield:
         interactive_tab = InteractiveTab(Coordinate(0, 0), self._screen_width, 40, self._ui_group)
 
         morale_icon_image_path = "assets/images/morale_icon.png"
-        morale_icon = Icon(Coordinate(0, 0), 0, 0, self._ui_group, "morale", morale_icon_image_path)
-
-        interactive_tab.add_icon(morale_icon)
 
     def _initialize_waypoints(self):
         self._field_waypoints.build()
@@ -194,8 +191,13 @@ class Battlefield:
         morale_bar = Bar(n, (62, 192, 105), Coordinate(0, 0), 100, 10, self._ui_group)
         n.set_morale_bar(morale_bar)
 
-        stats_tooltip = ToolTip(n, Coordinate(0, 0), 100, 100, self._ui_group)
-        n.set_stats_tooltip(stats_tooltip)
+        if isinstance(n, Soldier):
+            base_image_path = 'assets/images/board_ui.png'
+            panel_width = self._screen_width // 1.2
+            panel_height = self._screen_height * 1.2
+
+            stats_panel = SoldierStatsPanel(n, self._screen_width, self._screen_height, base_image_path,
+                                            Coordinate(0, 0), panel_width, panel_height, self._ui_group)
 
     def _initialize_trenches(self):
         space_between_fl_x = 100
@@ -255,9 +257,9 @@ class Battlefield:
 
                 morale_bar = [actor for actor in self._ui_group.get_actors() if isinstance(actor, Bar)]
 
-                for section in interactive_tab.get_sections():
-                    if isinstance(section, Button):
-                        section.set_select(False)
+                for ui in self._ui_group.get_actors():
+                    if isinstance(ui, Button):
+                        ui.set_select(True)
 
             # Any soldier is selected they will move to mouse pos
             if event.button == 3:
@@ -283,11 +285,6 @@ class Battlefield:
                 interactive_tab = self._ui_group.find(InteractiveTab)
 
                 select_box.pressed(camera_mouse_pos)
-
-                for section in interactive_tab.get_sections():
-                    if section.has_collided(camera_mouse_pos):
-                        if isinstance(section, Button):
-                            section.set_select(True)
 
                 # If a text box is selected
                 if console.has_collided(camera_mouse_pos):

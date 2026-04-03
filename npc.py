@@ -79,11 +79,6 @@ class NPC(Actor):
 
             pygame.draw.circle(screen, colour, screen_coord, radius)
 
-            trench_rect = camera.translate_rect(self._curr_trench.get_rect())
-            pygame.draw.rect(screen, (0, 0, 0), trench_rect)
-
-            print(self)
-
     def act(self, mouse_pos):
         self._execute_idle_movement()
         self._execute_controlled_movement()
@@ -308,6 +303,11 @@ class Soldier(NPC):
 
         screen_rect = camera.translate_rect(self._rect)
 
+        self._draw_animation(screen, screen_rect)
+
+        pygame.draw.rect(screen, (255, 0, 0), screen_rect, 1)
+
+    def _draw_animation(self, screen, screen_rect):
         if self._frame >= 3:  # Reset the frames once its reached max
             self._frame = 0
 
@@ -443,13 +443,11 @@ class Soldier(NPC):
     def set_select(self, select):
         if select:
             self._morale_bar.set_show(True)
-            self._stats_tooltip.set_show(True)
 
             self._debug = True
 
         elif not select and not self._shell_shocked:
             self._morale_bar.set_show(False)
-            self._stats_tooltip.set_show(False)
 
             self._debug = False
 
