@@ -26,31 +26,52 @@ class UserInterface(Actor, ABC):
         self._height = height
 
 
-class SelectBox(UserInterface):
+class InteractiveUI(UserInterface):
+    def __init__(self, coord, width, height, group):
+        super().__init__(coord, width, height, group)
+
+        self._select = False
+        self._show = False
+        self._hover = False
+        self._pressed = False
+
+    def set_select(self, select):
+        self._select = select
+
+    def is_select(self):
+        return self._select
+
+    def set_hover(self, hover):
+        self._hover = hover
+
+    def is_hover(self):
+        return self._hover
+
+    def set_pressed(self, pressed):
+        self._pressed = pressed
+
+    def is_pressed(self):
+        return self._pressed
+
+
+class SelectBox(InteractiveUI):
     OUTLINE_COLOUR = (0, 0, 0)
 
-    def __init__(self, coord, country, width, height, group):
+    def __init__(self, npc_list, coord, country, width, height, group):
         super().__init__(coord, width, height, group)
         self._rect = pygame.Rect(0, 0, 0, 0)
         self._country = country
         self._start_pos = None
-        self._pressed = False
+        self._npc_list = npc_list
 
     def draw(self, screen, camera):
-        screen_rect = camera.translate_rect(self._rect)
-
         if self._pressed:
+            screen_rect = camera.translate_rect(self._rect)
+
             pygame.draw.rect(screen, self.OUTLINE_COLOUR, screen_rect, 3)
 
     def act(self, mouse_pos):
-        self.execute(mouse_pos)
-
-    def execute(self, mouse_pos):
-        if not self._pressed:
-            return
-
-        self._update(mouse_pos)
-        # self._select(soldiers)
+        self._monitor_pressed(mouse_pos)
 
     def _update(self, mouse_pos):
         start_x, start_y = self._start_pos.get_x(), self._start_pos.get_y()
@@ -63,30 +84,32 @@ class SelectBox(UserInterface):
 
         self._rect = pygame.Rect(rect_x, rect_y, rect_w, rect_h)
 
-    def end_drag(self, npc_actors):
+    def end_drag(self):
         if not self._pressed:
             return
 
         self._pressed = False
-        self._select_actors(npc_actors)
+        self._select_npc()
 
+        self._start_pos = None
         self._rect = pygame.Rect(0, 0, 0, 0)
 
-    def _select_actors(self, npc_actors):
-        for actor in npc_actors:
-            if isinstance(actor, Soldier):
-                if (self.has_collided(actor) and
-                        actor.get_country() == self._country):
-                    actor.set_select(True)
+    def _select_npc(self):
+        for npc in self._npc_list:
+            if isinstance(npc, Soldier):
+                if (self.has_collided(npc) and
+                        npc.get_country() == self._country):
+                    npc.set_select(True)
                 else:
-                    actor.set_select(False)
+                    npc.set_select(False)
 
-    def pressed(self, mouse_pos):
-        self._pressed = True
-        self._start_pos = Coordinate(mouse_pos[0], mouse_pos[1])
+    def _monitor_pressed(self, mouse_pos):
+        if self._pressed:
 
-    def is_pressed(self):
-        return self._pressed
+            if self._start_pos is None:
+                self._start_pos = Coordinate(mouse_pos[0], mouse_pos[1])
+
+            self._update(mouse_pos)
 
 
 class InteractiveTab(UserInterface):
@@ -121,7 +144,7 @@ class InteractiveTab(UserInterface):
         return self._sections
 
 
-class TextBox(UserInterface):
+class TextBox(InteractiveUI):
     SIDEBAR = '|'
 
     def __init__(self, coord, width, height, group, colour, prompt_message, npc_list):
@@ -197,9 +220,6 @@ class TextBox(UserInterface):
     def is_active(self):
         return self._active
 
-    def has_collided(self, mouse_pos):
-        return self._body_rect.collidepoint(mouse_pos)
-
 
 class Console(TextBox):
     def __init__(self, coord, width, height, group, colour, prompt_symbol, field_waypoints, trench_list, npc_list):
@@ -227,7 +247,7 @@ class Console(TextBox):
         self._clear_text()
 
 
-class ObjectBound(UserInterface):
+class ObjectBoundUI(UserInterface):
     def __init__(self, attached_obj, coord, width, height, group):
         super().__init__(coord, width, height, group)
 
@@ -254,7 +274,7 @@ class ObjectBound(UserInterface):
         self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
 
 
-class Bar(ObjectBound):
+class Bar(ObjectBoundUI):
     def __init__(self, attached_object, bar_colour, coord, width, height, group):
         super().__init__(attached_object, coord, width, height, group)
 
@@ -272,7 +292,7 @@ class Bar(ObjectBound):
                                  (bar_value, self._height))
 
 
-class ScreenBound(UserInterface):
+class ScreenBoundUI(UserInterface):
     def __init__(self, screen_width, screen_height, coord, width, height, group):
         super().__init__(coord, width, height, group)
 
@@ -320,7 +340,7 @@ class ScreenBound(UserInterface):
         self._anchor_pos = anchor_pos
 
 
-class Panel(ScreenBound):
+class Panel(ScreenBoundUI):
     def __init__(self, screen_width, screen_height, base_image_path, coord, width, height, group):
         super().__init__(screen_width, screen_height, coord, width, height, group)
 
@@ -367,6 +387,12 @@ class SoldierStatsPanel(Panel):
             screen.blit(self._base_image, self._rect)
 
     def _monitor_buttons(self):
+        if self._exit_button.is_pressed():
+            self.kill()
+
+        self._update_buttons_pos()
+
+    def _update_buttons_pos(self):
         new_x = self._rect.topleft[0] + 20
         new_y = self._rect.topleft[1] + 20
         self._exit_button.update_pos((new_x, new_y))
@@ -375,8 +401,12 @@ class SoldierStatsPanel(Panel):
         if self._soldier.has_selected():
             self._show = True
 
+    def kill(self):
+        self._exit_button.kill()
+        self._alive = False
 
-class ToolTip(ObjectBound):  # I DONT WANT THIS ATTACHED I WANT IT IN CENTRE OF SCREEN
+
+class ToolTip(ObjectBoundUI):  # I DONT WANT THIS ATTACHED I WANT IT IN CENTRE OF SCREEN
     BASE_IMAGE_PATH = "assets/images/board_ui.png"
 
     def __init__(self, attached_obj, coord, width, height, group):
@@ -432,7 +462,7 @@ class IconContent:
         self._image_rect = self._image.get_rect()
 
 
-class Button(UserInterface):
+class Button(InteractiveUI):
     def __init__(self, coord, width, height, colour, pressed_colour, group):
         super().__init__(coord, width, height, group)
         self._colour = colour
@@ -457,14 +487,13 @@ class Button(UserInterface):
         self._rect = pygame.Rect(self._world_coord.get_coord(), (self._width, self._height))
 
     def _check_pressed(self):
-        if self._select:
+        if self._pressed:
             self._outline_colour = self._pressed_colour
         else:
             self._outline_colour = (0, 0, 0)
 
     def update_pos(self, coord):
         new_x, new_y = coord
-        print(new_x, new_y)
 
         self._rect.center = (new_x, new_y)
         self._world_coord = Coordinate(new_x, new_y)

@@ -48,9 +48,9 @@ class Battlefield:
         # self._field_waypoints.draw(self._screen, self._world_camera)
 
     def act(self, raw_mouse_pos, dt):
-        camera_mouse_pos = self._world_camera.translate_mouse_pos(raw_mouse_pos)
-
         self._manage_camera_input(dt)
+
+        camera_mouse_pos = self._world_camera.translate_mouse_pos(raw_mouse_pos)
 
         self._npc_group.act(camera_mouse_pos)
         self._weapon_group.act(camera_mouse_pos)
@@ -70,7 +70,7 @@ class Battlefield:
     def _initialize_ui(self):
         all_trenches = [t for sublist in self._trenches.values() for t in sublist]
 
-        select_box = SelectBox(Coordinate(0, 0), self._player_country, 0, 0, self._ui_group)
+        select_box = SelectBox(self._npc_group.get_actors(), Coordinate(0, 0), self._player_country, 0, 0, self._ui_group)
 
         console = Console(Coordinate(0, self._screen_height - 40), self._screen_width, 200, self._ui_group,
                           (0, 0, 0), '[CONSOLE]', self._field_waypoints, all_trenches, self._npc_group)
@@ -235,19 +235,15 @@ class Battlefield:
     def manage_input(self, event, mouse_pos):
         camera_mouse_pos = self._world_camera.translate_mouse_pos(mouse_pos)
 
-        self._manage_mouse_input(event, camera_mouse_pos)
-        self._manage_key_input(event)
+        self._manage_npc_input(event, camera_mouse_pos)
+        self._manage_ui_input(event, camera_mouse_pos)
 
-    def _manage_mouse_input(self, event, camera_mouse_pos):
+    def _manage_npc_input(self, event, camera_mouse_pos):
+        self._manage_npc_button_input(event, camera_mouse_pos)
 
+    def _manage_npc_button_input(self, event, camera_mouse_pos):
         if event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1:
-                select_box = self._ui_group.find(SelectBox)
-                interactive_tab = self._ui_group.find(InteractiveTab)
-
-                # If we are dragging a select box
-                if select_box.is_pressed():
-                    select_box.end_drag(self._npc_group.get_actors())
 
                 for npc in self._npc_group.get_actors():
                     if isinstance(npc, NPC):
@@ -256,10 +252,6 @@ class Battlefield:
                             npc.set_select(True)
 
                 morale_bar = [actor for actor in self._ui_group.get_actors() if isinstance(actor, Bar)]
-
-                for ui in self._ui_group.get_actors():
-                    if isinstance(ui, Button):
-                        ui.set_select(True)
 
             # Any soldier is selected they will move to mouse pos
             if event.button == 3:
@@ -277,29 +269,7 @@ class Battlefield:
 
                                     trench.set_select(False)
 
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            console = self._ui_group.find(Console)
-
-            if event.button == 1:
-                select_box = self._ui_group.find(SelectBox)
-                interactive_tab = self._ui_group.find(InteractiveTab)
-
-                select_box.pressed(camera_mouse_pos)
-
-                # If a text box is selected
-                if console.has_collided(camera_mouse_pos):
-                    console.set_active(True)
-                else:
-                    console.set_active(False)
-
-            # Select Trench
-            if event.button == 3:
-                for actor in self._environment_group.get_actors():
-                    if isinstance(actor, Trench) and actor.get_country() == self._player_country:
-                        if actor.has_hover():
-                            actor.set_select(True)
-
-    def _manage_key_input(self, event):
+    def _manage_console_input(self, event):
         if event.type == pygame.KEYDOWN:
             console = self._ui_group.find(Console)
 
@@ -328,3 +298,47 @@ class Battlefield:
             self._world_camera.update(Direction.RIGHT, dt)
         elif keys[pygame.K_a]:
             self._world_camera.update(Direction.LEFT, dt)
+
+    def _manage_ui_input(self, event, camera_mouse_pos):
+        self._manage_ui_key_input(event)
+        self._manage_ui_button_input(event, camera_mouse_pos)
+        self._manage_console_input(event)
+
+    def _manage_ui_key_input(self, event):
+        pass
+
+    def _manage_ui_button_input(self, event, camera_mouse_pos):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+
+            if event.button == 1:
+                select_box = self._ui_group.find(SelectBox)
+                if select_box:
+                    select_box.set_pressed(True)
+
+            for ui in self._ui_group.get_actors():
+                if ui.has_collided(camera_mouse_pos):
+
+                    if event.button == 1:
+                        if isinstance(ui, InteractiveUI):
+                            ui.set_pressed(True)
+
+            console = self._ui_group.find(Console)
+            if event.button == 1:
+                if console.has_collided(camera_mouse_pos):
+                    console.set_active(True)
+                else:
+                    console.set_active(False)
+
+        elif event.type == pygame.MOUSEBUTTONUP:
+
+            if event.button == 1:
+                select_box = self._ui_group.find(SelectBox)
+                if select_box and select_box.is_pressed():
+                    select_box.end_drag()
+
+            for ui in self._ui_group.get_actors():
+                if ui.has_collided(camera_mouse_pos):
+
+                    if event.button == 1:
+                        if isinstance(ui, InteractiveUI):
+                            ui.set_pressed(False)
