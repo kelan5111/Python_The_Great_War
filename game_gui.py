@@ -279,7 +279,7 @@ class Bar(ObjectBoundUI):
         super().__init__(attached_object, coord, width, height, group)
 
         self._bar_colour = bar_colour
-        self._bar_meter = width
+        self._bar_value = width
 
     def draw(self, screen, camera):
         if self._show:
@@ -287,9 +287,15 @@ class Bar(ObjectBoundUI):
             pygame.draw.rect(screen, self._bar_colour, screen_rect)
             pygame.draw.rect(screen, self._outline_colour, screen_rect, 2)
 
-    def _update_bar(self, bar_value):
-        self._rect = pygame.Rect(self._world_coord.get_coord(),
-                                 (bar_value, self._height))
+    def act(self, mouse_pos):
+        super().act(mouse_pos)
+        self._update_bar()
+
+    def _update_bar(self):
+        self._width = self._bar_value
+    
+    def set_bar_value(self, bar_value):
+        self._bar_value = bar_value
 
 
 class ScreenBoundUI(UserInterface):
@@ -341,12 +347,16 @@ class ScreenBoundUI(UserInterface):
 
 
 class Panel(ScreenBoundUI):
-    def __init__(self, screen_width, screen_height, base_image_path, coord, width, height, group):
+    def __init__(self, screen_width, screen_height, padding, base_image_path, coord, width, height, group):
         super().__init__(screen_width, screen_height, coord, width, height, group)
 
         self._base_image = pygame.image.load(base_image_path).convert_alpha()
         self._rect = self._base_image.get_bounding_rect()
         self._resize_base()
+
+        self._children: List[UserInterface] = []
+
+        self._padding = padding
 
         self.set_anchor_pos(AnchoringPosition.CENTER)
 
@@ -355,6 +365,11 @@ class Panel(ScreenBoundUI):
             super().draw(screen, camera)
 
             screen.blit(self._base_image, self._rect)
+    
+    def act(self, mouse_pos):
+        super().act(mouse_pos)
+
+        self._monitor_children()
 
     def _resize_base(self):
         self._base_image = pygame.transform.scale(self._base_image, (self._width, self._height))
@@ -363,10 +378,41 @@ class Panel(ScreenBoundUI):
         self._base_image = self._base_image.subsurface(visible_rect)
         self._rect = self._base_image.get_rect()
 
+    def _monitor_children(self):
+        if self._show:
+            for child in self._children:
+                child.set_show(True)
+
+        self._update_layout()
+
+    def _update_layout(self):
+        padding_offset = 10
+        padding_spacing = 50
+        
+        content_rect = self.get_content_rect()
+
+        for child in self._children:
+            child_rect = child.get_rect()
+            new_x = content_rect.x + padding_offset
+            new_y = content_rect.y + padding_offset + padding_spacing
+
+            child_rect.topleft = (new_x, new_y)
+
+    def add_child(self, child):
+        self._children.append(child)
+
+    def get_content_rect(self):
+        return pygame.Rect(
+            self._rect.x + self._padding,
+            self._rect.y + self._padding,
+            self._rect.width - 2 * self._padding,
+            self._rect.height - 2 * self._padding
+        )
+
 
 class SoldierStatsPanel(Panel):
-    def __init__(self, soldier, screen_width, screen_height, base_image_path, coord, width, height, group):
-        super().__init__(screen_width, screen_height, base_image_path, coord, width, height, group)
+    def __init__(self, soldier, screen_width, screen_height, padding, base_image_path, coord, width, height, group):
+        super().__init__(screen_width, screen_height, padding, base_image_path, coord, width, height, group)
 
         self._soldier = soldier
 

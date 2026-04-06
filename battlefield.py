@@ -196,8 +196,9 @@ class Battlefield:
             panel_width = self._screen_width // 1.2
             panel_height = self._screen_height * 1.2
 
-            stats_panel = SoldierStatsPanel(n, self._screen_width, self._screen_height, base_image_path,
+            stats_panel = SoldierStatsPanel(n, self._screen_width, self._screen_height, 20, base_image_path,
                                             Coordinate(0, 0), panel_width, panel_height, self._ui_group)
+            
 
     def _initialize_trenches(self):
         space_between_fl_x = 100

@@ -255,11 +255,6 @@ class NPC(Actor):
         return len(self._path) > 0
 
     def set_select(self, select):
-        if select:
-            self.show_moral_bar()
-        elif not select:
-            self.hide_moral_bar()
-
         self._select = select
 
     def set_curr_trench(self, curr_trench):
@@ -340,6 +335,7 @@ class Soldier(NPC):
         super().act(mouse_pos)
 
         self._detect_enemies()
+        self._monitor_morale()
         self._monitor_shell_shocked()
         self._monitor_trenches()
 
@@ -352,18 +348,17 @@ class Soldier(NPC):
         self._morale_bar.kill()
 
     def _detect_enemies(self):
-        for actor in self._actors:
-            if isinstance(actor, Soldier):
-                if actor.get_country() != self._country:
-                    enemy = self._is_enemy_near(actor)
+        for npc in self._actors:
+            if npc.get_country() != self._country:
+                enemy = self._is_enemy_near(npc)
 
-                    if enemy is not None:  # Enemy is near, stop moving and engage
-                        self._curr_state = NPCState.ENGAGED
-                        self._enemy_lock = enemy
-                        self._attack()
-                    else:  # No enemy is in sight act normal
-                        self._curr_state = NPCState.IDLE
-                        self._enemy_lock = None
+                if enemy is not None:  # Enemy is near, stop moving and engage
+                    self._curr_state = NPCState.ENGAGED
+                    self._enemy_lock = enemy
+                    self._attack()
+                else:  # No enemy is in sight act normal
+                    self._curr_state = NPCState.IDLE
+                    self._enemy_lock = None
 
     def _attack(self):
         if self.has_weapon():
@@ -475,14 +470,20 @@ class Soldier(NPC):
     def _monitor_shell_shocked(self):
         if self._shell_shocked:
             self._morale_bar.set_show(True)
+            self._morale_bar.set_bar_value(self._morale)
 
             if not self._hub_timer.is_started():
                 self._hub_timer.start()
 
             if self._hub_timer.is_finished(5):
                 self._shell_shocked = False
-                self._morale_bar.set_show(False)
                 self._hub_timer.reset()
+    
+    def _monitor_morale(self):
+        if self._shell_shocked:
+            self._morale_bar.set_show(True)
+        else:
+            self._morale_bar.set_show(False)
 
     def retreat(self):
         pass
